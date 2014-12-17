@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import time
 
+
 class NodeRegister:
     # statement and conditional are just used to ID functions
     statement = 1
@@ -64,9 +65,9 @@ class BehaviorTree:
         self.behavior_nodes = []
         self.current_behavior_node = None
 
-    def execute(self, bot):
+    def step(self, bot):
         if self.current_behavior_node is None:
-            raise ValueError("Current Node Must be a function, not None.")
+            raise ValueError("Current Node Must be a function, not None. (Bot: %s)" % bot)
         self.current_behavior_node = self.current_behavior_node.execute(bot)
 
     def return_tree_copy(self):
@@ -98,10 +99,21 @@ class Bot(BaseSimulationEntity):
         else:
             self.name = name
 
-    def execute(self):
+    def step(self):
         if self.behavior_tree is None:
             raise ValueError("Behavior Tree for bot %s must be BehaviorTree object, not None." % self)
-        self.behavior_tree.execute()
+        self.behavior_tree.step(self)
+        self.energy -= 1
+        if self.energy < 1:
+            self.dead = True
+
+    def __repr__(self):
+        return self.name
+
+    @staticmethod
+    @statement
+    def rest(bot):
+        pass
 
 
 class Plant(BaseSimulationEntity):
@@ -123,7 +135,7 @@ class Plant(BaseSimulationEntity):
         self.spore_max_travel = 80
         self.percent_reproduction_chance = 2
 
-    def execute(self):
+    def step(self):
         # Check if the plant can grow
         if self.energy < self.max_energy:
             self.energy += self.growth_rate
@@ -133,13 +145,16 @@ class Plant(BaseSimulationEntity):
             self.dead = True
         self.age += 1
 
+    def __repr__(self):
+        return self.name
+
     def check_reproduction(self):
         if self.energy >= (self.max_energy - self.child_investment):
             # Check if reproduction randomly allowed
             if random.randint(0, 100) < self.percent_reproduction_chance:
                 # Find the new location of the child
                 travel_distance = random.randint(self.spore_min_travel, self.spore_max_travel)
-                travel_angle_rads = random.random() * 2
+                travel_angle_rads = random.random() * 2 * math.pi
                 child_x = self.x + (travel_distance * math.sin(travel_angle_rads))
                 child_y = self.y + (travel_distance * math.cos(travel_angle_rads))
                 # Take energy from the parent and give to the child
@@ -155,17 +170,13 @@ class World:
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
 
-    def execute(self):
-        # Update plants
-        for plant in list(self.plants):
-            plant.execute()
-            if plant.dead:
-                self.plants.remove(plant)
-        # Update bots
-        for bot in list(self.bots):
-            bot.execute()
-            if bot.dead:
-                self.bots.remove(bot)
+    def step(self):
+        # Update all plants then all bots
+        for array in [self.plants, self.bots]:
+            for entity in list(array):
+                entity.step()
+                if entity.dead:
+                    array.remove(entity)
 
     def add_bot(self, bot):
         if self.bot_limit and len(self.bot_limit) > self.bot_limit:
@@ -183,17 +194,30 @@ class World:
 if __name__ == '__main__':
     start_time = time.time()
     print("Starting Simulation...")
-    Earth = World()
+    Earth = World(plant_limit=2000)
     Earth.add_plant(Plant(0, 0, 5))
     plant_numbers = []
     bot_numbers = []
-    for tick in range(1000):
-        Earth.execute()
-        # Keep track of some info for graphing
-        plant_numbers.append(len(Earth.plants))
-        bot_numbers.append(len(Earth.bots))
 
-    # Display some graphs to get a sense of what's going on
+    def run(ticks):
+        for tick in range(ticks):
+            Earth.step()
+            # Keep track of some info for graphing
+            plant_numbers.append(len(Earth.plants))
+            bot_numbers.append(len(Earth.bots))
+
+    run(750)
+    basic_behavior = BehaviorTree()
+    basic_node = BehaviorNode(Bot.rest)
+    basic_node.next_node = basic_node
+    basic_behavior.behavior_nodes = [basic_node]
+    basic_behavior.current_behavior_node = basic_behavior.behavior_nodes[0]
+    for i in range(50):
+        Earth.add_bot(Bot(random.randint(-50, 50), random.randint(-50, 50), 200,
+                          behavior_tree=basic_behavior.return_tree_copy()))
+    run(750)
+
+    # Create some graphs to get a sense of what's going on
     graph = plt.figure()
     graph.subplots_adjust(wspace=0.4)
     graph.subplots_adjust(hspace=0.4)
@@ -216,6 +240,12 @@ if __name__ == '__main__':
     bot_nums.plot(range(0, len(bot_numbers)), bot_numbers,)
     bot_nums.set_xlabel('Time')
     bot_nums.set_ylabel('Number of Bots')
+
+    # Make all subplot axes tick labels smaller and give them a title
+    for subplot, title in [(plant_dist, 'Plant Distribution'), (plant_nums, 'Plant Numbers'),
+                           (bot_dist, 'Bot Distribution'), (bot_nums, 'Bot Numbers')]:
+        subplot.tick_params(labelsize=6)
+        subplot.set_title(title)
 
     graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
     print("Elapsed seconds:", time.time() - start_time)
