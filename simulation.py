@@ -3,7 +3,9 @@ import copy
 import random
 import math
 import os
-
+from matplotlib import pyplot as plt
+import numpy as np
+import time
 
 class NodeRegister:
     # statement and conditional are just used to ID functions
@@ -17,6 +19,7 @@ def statement(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
         return function(*args, **kwargs)
+
     NodeRegister.registered_statements.append(dec)
     return dec
 
@@ -25,6 +28,7 @@ def conditional(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
         return function(*args, **kwargs)
+
     NodeRegister.registered_conditionals.append(dec)
     return dec
 
@@ -136,8 +140,8 @@ class Plant(BaseSimulationEntity):
                 # Find the new location of the child
                 travel_distance = random.randint(self.spore_min_travel, self.spore_max_travel)
                 travel_angle_rads = random.random() * 2
-                child_x = travel_distance * math.sin(travel_angle_rads)
-                child_y = travel_distance * math.cos(travel_angle_rads)
+                child_x = self.x + (travel_distance * math.sin(travel_angle_rads))
+                child_y = self.y + (travel_distance * math.cos(travel_angle_rads))
                 # Take energy from the parent and give to the child
                 self.energy -= self.child_investment
                 baby_plant = Plant(child_x, child_y, self.child_investment)
@@ -177,11 +181,41 @@ class World:
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     print("Starting Simulation...")
     Earth = World()
     Earth.add_plant(Plant(0, 0, 5))
-    records = []
+    plant_numbers = []
+    bot_numbers = []
     for tick in range(1000):
         Earth.execute()
-        print(len(Earth.plants), Earth.plants)
-        records.append(len(Earth.plants))
+        # Keep track of some info for graphing
+        plant_numbers.append(len(Earth.plants))
+        bot_numbers.append(len(Earth.bots))
+
+    # Display some graphs to get a sense of what's going on
+    graph = plt.figure()
+    graph.subplots_adjust(wspace=0.4)
+    graph.subplots_adjust(hspace=0.4)
+    plant_dist = graph.add_subplot(2, 2, 1)
+    plant_dist.scatter([plant.x for plant in Earth.plants], [plant.y for plant in Earth.plants], s=2, lw=0)
+    plant_dist.set_xlabel('X')
+    plant_dist.set_ylabel('Y')
+
+    plant_nums = graph.add_subplot(2, 2, 2)
+    plant_nums.set_xlabel('Time')
+    plant_nums.set_ylabel('Number of Plants')
+    plant_nums.plot(range(0, len(plant_numbers)), plant_numbers)
+
+    bot_dist = graph.add_subplot(2, 2, 3)
+    bot_dist.scatter([bot.x for bot in Earth.bots], [bot.y for bot in Earth.bots], s=2, lw=0)
+    bot_dist.set_xlabel('X')
+    bot_dist.set_ylabel('Y')
+
+    bot_nums = graph.add_subplot(2, 2, 4)
+    bot_nums.plot(range(0, len(bot_numbers)), bot_numbers,)
+    bot_nums.set_xlabel('Time')
+    bot_nums.set_ylabel('Number of Bots')
+
+    graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
+    print("Elapsed seconds:", time.time() - start_time)
