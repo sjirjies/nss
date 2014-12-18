@@ -7,18 +7,24 @@ from entities import *
 
 
 class World:
-    def __init__(self, bot_limit=None, plant_limit=None):
+    def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None):
         self.bots = []
         self.plants = []
         self.signals = []
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
+        self.boundary_sizes = boundary_sizes
 
     def step(self):
         # Update all plants then all bots
         for array in [self.plants, self.bots, self.signals]:
             for entity in list(array):
                 entity.step()
+                # Make sure the entity wraps around the boundaries
+                if self.boundary_sizes:
+                    entity.x = entity.x % self.boundary_sizes[0]
+                    entity.y = entity.y % self.boundary_sizes[1]
+                # Take care of dead entities
                 if entity.dead:
                     if isinstance(entity, Bot):
                         print("%s has died" % str(entity))
@@ -91,18 +97,20 @@ class GraphicalSimulation:
     def __init__(self, world):
         pygame.init()
         screen_width, screen_height = 500, 500
+        if world.boundary_sizes:
+            screen_width, screen_height = world.boundary_sizes
         screen = pygame.display.set_mode((screen_width, screen_height))
         self.clock = pygame.time.Clock()
         running = 1
         tick = 0
         self.world = world
-        center = screen_width/2, screen_height/2
         # Run the simulation to get plants spread out
+        earth.add_plant(Plant(screen_width/2, screen_height/2, 5))
         for i in range(1000):
             self.world.step()
         # Add a bot and display the simulation
         behavior = GraphicalSimulation.create_basic_intelligence()
-        self.world.add_bot(Bot(0, 0, 250, behavior))
+        self.world.add_bot(Bot(screen_width/2, screen_height/2, 250, behavior))
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -119,15 +127,15 @@ class GraphicalSimulation:
             for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
                 for entity in entity_list:
                     # Offset the origin to half the screen dimensions
-                    x = entity.x + center[0]
-                    y = entity.y + center[1]
+                    x = entity.x
+                    y = entity.y
                     if 0 <= x <= screen_width and 0 <= y <= screen_height:
                         pixels[x][y] = color
                     # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
             for signal in self.world.signals:
                 diameter = signal.diameter
-                left = signal.x - (diameter/2) + center[0]
-                top = signal.y - (diameter/2) + center[1]
+                left = signal.x - (diameter/2)
+                top = signal.y - (diameter/2)
                 pygame.draw.ellipse(screen, (40, 50, 200), (left, top, diameter, diameter), 1)
             tick += 1
             pygame.display.update()
@@ -166,8 +174,7 @@ class GraphicalSimulation:
 if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
-    earth = World(plant_limit=300)
-    earth.add_plant(Plant(0, 0, 5))
+    earth = World(plant_limit=600, boundary_sizes=(500, 500))
     plant_numbers = []
     bot_numbers = []
     GraphicalSimulation(earth)

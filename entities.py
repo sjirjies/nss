@@ -119,13 +119,12 @@ class Bot(BaseSimulationEntity):
         if bot.energy < bot.max_energy:
             for food in bot.world.plants:
                 if math.sqrt(((food.x - bot.x)**2) + ((food.y - bot.y)**2)) <= 4:
-                    message = "Transferring "
                     energy = food.energy
-                    message += str(energy) + " energy to " + str(bot) + " from " + str(food)
                     food.energy = 0
                     food.dead = True
                     bot.energy += energy
-                    print(message)
+                    # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
+                    # print(message)
                     break
 
 
