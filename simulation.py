@@ -10,26 +10,29 @@ class World:
     def __init__(self, bot_limit=None, plant_limit=None):
         self.bots = []
         self.plants = []
+        self.signals = []
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
 
     def step(self):
         # Update all plants then all bots
-        for array in [self.plants, self.bots]:
+        for array in [self.plants, self.bots, self.signals]:
             for entity in list(array):
                 entity.step()
                 if entity.dead:
-                    print("%s has died" % str(entity))
+                    if isinstance(entity, Bot):
+                        print("%s has died" % str(entity))
                     array.remove(entity)
 
     def add_bot(self, bot):
-        if self.bot_limit and len(self.bot_limit) > self.bot_limit:
+        if self.bot_limit and len(self.bots) >= self.bot_limit:
             return False
-        bot.world = self
-        self.bots.append(bot)
+        else:
+            bot.world = self
+            self.bots.append(bot)
 
     def add_plant(self, plant):
-        if self.plant_limit and len(self.plants) > self.plant_limit:
+        if self.plant_limit and len(self.plants) >= self.plant_limit:
             return False
         plant.world = self
         self.plants.append(plant)
@@ -87,12 +90,13 @@ def no_graphics_run():
 class GraphicalSimulation:
     def __init__(self, world):
         pygame.init()
-        screen = pygame.display.set_mode((500, 500))
+        screen_width, screen_height = 500, 500
+        screen = pygame.display.set_mode((screen_width, screen_height))
         self.clock = pygame.time.Clock()
         running = 1
         tick = 0
         self.world = world
-        center = screen.get_width()/2, screen.get_height()/2
+        center = screen_width/2, screen_height/2
         # Run the simulation to get plants spread out
         for i in range(1000):
             self.world.step()
@@ -117,33 +121,46 @@ class GraphicalSimulation:
                     # Offset the origin to half the screen dimensions
                     x = entity.x + center[0]
                     y = entity.y + center[1]
-                    pixels[x][y] = color
+                    if 0 <= x <= screen_width and 0 <= y <= screen_height:
+                        pixels[x][y] = color
                     # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
+            for signal in self.world.signals:
+                diameter = signal.diameter
+                left = signal.x - (diameter/2) + center[0]
+                top = signal.y - (diameter/2) + center[1]
+                pygame.draw.ellipse(screen, (40, 50, 200), (left, top, diameter, diameter), 1)
             tick += 1
             pygame.display.update()
-            self.clock.tick(15)
+            self.clock.tick(10)
         pygame.quit()
 
     @staticmethod
     def create_basic_intelligence():
         check_reproduce_node = ConditionalNode(Bot.can_i_reproduce)
         create_clone_node = StatementNode(Bot.create_clone)
-        target_food_node = StatementNode(Bot.target_food)
+        launch_signal_node = StatementNode(Bot.launch_signal)
+        check_active_signal_node = ConditionalNode(Bot.do_i_have_a_signal)
+        check_signal_found_food_node = ConditionalNode(Bot.has_signal_found_food)
+        wait_node = StatementNode(Bot.wait)
         move_to_target_node = StatementNode(Bot.move_towards_target)
         check_at_target_node = ConditionalNode(Bot.am_i_near_target)
         eat_node = StatementNode(Bot.eat_nearby_food)
 
-        check_reproduce_node.assign_edges(create_clone_node, target_food_node)
+        check_reproduce_node.assign_edges(create_clone_node, launch_signal_node)
         create_clone_node.assign_edge(check_reproduce_node)
-        target_food_node.assign_edge(move_to_target_node)
+        launch_signal_node.assign_edge(check_signal_found_food_node)
+        check_signal_found_food_node.assign_edges(move_to_target_node, wait_node)
+        wait_node.assign_edge(check_active_signal_node)
+        check_active_signal_node.assign_edges(check_signal_found_food_node, launch_signal_node)
         move_to_target_node.assign_edge(check_at_target_node)
         check_at_target_node.assign_edges(eat_node, move_to_target_node)
         eat_node.assign_edge(check_reproduce_node)
 
         behavior = BehaviorTree()
-        behavior.behavior_nodes = [check_reproduce_node, create_clone_node, target_food_node,
-                                   move_to_target_node, check_at_target_node, eat_node]
-        behavior.current_behavior_node = target_food_node
+        behavior.behavior_nodes = [launch_signal_node, check_reproduce_node, create_clone_node,
+                                   check_signal_found_food_node, wait_node,move_to_target_node, check_at_target_node,
+                                   eat_node, check_active_signal_node]
+        behavior.current_behavior_node = launch_signal_node
         return behavior
 
 if __name__ == '__main__':

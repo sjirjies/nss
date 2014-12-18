@@ -13,6 +13,7 @@ class NodeRegister:
 def statement(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
+        # print("Function: %s" % function.__name__)
         return function(*args, **kwargs)
     NodeRegister.registered_statements.append(dec)
     return dec
@@ -21,6 +22,7 @@ def statement(function):
 def conditional(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
+        # print("Function: %s" % function.__name__)
         return function(*args, **kwargs)
     NodeRegister.registered_conditionals.append(dec)
     return dec
