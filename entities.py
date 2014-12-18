@@ -5,11 +5,18 @@ from intelligence import *
 
 class BaseSimulationEntity:
     def __init__(self, x, y, energy):
+        self.name = 'BaseEntity'
         self.world = None
         self.x = x
         self.y = y
         self.energy = energy
         self.dead = False
+
+    def step(self):
+        pass
+
+    def __repr__(self):
+        return self.name
 
 
 class Bot(BaseSimulationEntity):
@@ -19,7 +26,8 @@ class Bot(BaseSimulationEntity):
         super().__init__(x_start, y_start, energy)
         self.behavior_tree = behavior_tree
         self.speed = 1
-        self.child_investment = 150
+        self.child_investment = 200
+        self.max_energy = 300
         self.target_point = None
         Bot.counter += 1
         if name is None:
@@ -34,9 +42,6 @@ class Bot(BaseSimulationEntity):
         self.energy -= 1
         if self.energy < 1:
             self.dead = True
-
-    def __repr__(self):
-        return self.name
 
     @staticmethod
     @conditional
@@ -81,15 +86,16 @@ class Bot(BaseSimulationEntity):
     @statement
     def eat_nearby_food(bot):
         # TODO: have bots use signals to find food within a small distance from them
-        for food in bot.world.plants:
-            if math.sqrt(((food.x - bot.x)**2) + ((food.y - bot.y)**2)) <= 3:
-                message = "Transferring "
-                energy = food.energy
-                message += str(energy) + " energy from " + str(food) + " to " + str(bot)
-                food.world.plants.remove(food)
-                bot.energy += energy
-                print(message)
-                break
+        if bot.energy < bot.max_energy:
+                for food in bot.world.plants:
+                    if math.sqrt(((food.x - bot.x)**2) + ((food.y - bot.y)**2)) <= 3:
+                        message = "Transferring "
+                        energy = food.energy
+                        message += str(energy) + " energy from " + str(food) + " to " + str(bot)
+                        food.world.plants.remove(food)
+                        bot.energy += energy
+                        print(message)
+                    break
 
 
 class Plant(BaseSimulationEntity):
@@ -104,7 +110,7 @@ class Plant(BaseSimulationEntity):
             self.name = name
         self.age = 0
         self.max_age = 1000
-        self.max_energy = 200
+        self.max_energy = 50
         self.growth_rate = 1
         self.child_investment = 20
         self.spore_min_travel = 10
@@ -120,9 +126,6 @@ class Plant(BaseSimulationEntity):
         if self.age > self.max_age:
             self.dead = True
         self.age += 1
-
-    def __repr__(self):
-        return self.name
 
     def check_reproduction(self):
         if self.energy >= (self.max_energy - self.child_investment):

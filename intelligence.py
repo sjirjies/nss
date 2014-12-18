@@ -14,7 +14,6 @@ def statement(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
         return function(*args, **kwargs)
-
     NodeRegister.registered_statements.append(dec)
     return dec
 
@@ -23,38 +22,55 @@ def conditional(function):
     @functools.wraps(function)
     def dec(*args, **kwargs):
         return function(*args, **kwargs)
-
     NodeRegister.registered_conditionals.append(dec)
     return dec
 
 
-class BehaviorNode:
+class BaseBehaviorNode:
+    count = 0
+
     def __init__(self, function):
         self.function = function
-        self.node_type = self._assign_node_type()
+        BaseBehaviorNode.count += 1
+        self.node_number = BaseBehaviorNode.count
+
+    def execute(self, bot):
+        return self.function(bot)
+
+    def __repr__(self):
+        return str(self.node_number) + '_' + self.function.__name__
+
+
+class StatementNode(BaseBehaviorNode):
+    def __init__(self, function):
+        super().__init__(function)
         self.next_node = None
+
+    def assign_edge(self, next_node):
+        self.next_node = next_node
+
+    def execute(self, bot):
+        super().execute(bot)
+        return self.next_node
+
+
+class ConditionalNode(BaseBehaviorNode):
+    def __init__(self, function):
+        super().__init__(function)
         self.true_node = None
         self.false_node = None
 
+    def assign_edges(self, true_node, false_node):
+        self.true_node = true_node
+        self.false_node = false_node
+
     def execute(self, bot):
-        result = self.function(bot)
-        if self.node_type == NodeRegister.statement:
-            return self.next_node
-        elif self.node_type == NodeRegister.conditional:
-            if result:
-                return self.true_node
-            return self.false_node
-
-    def _assign_node_type(self):
-        if self.function in NodeRegister.registered_statements:
-            return NodeRegister.statement
-        elif self.function in NodeRegister.registered_conditionals:
-            return NodeRegister.conditional
-        else:
-            raise LookupError("Function %s is not registered as a statement or condition" % self.function)
-
-    def __repr__(self):
-        return self.function.__name__
+        result = super().execute(bot)
+        if result is None:
+            raise ValueError("Functions of conditional nodes must return True or False, not None.")
+        if result:
+            return self.true_node
+        return self.false_node
 
 
 class BehaviorTree:
@@ -64,7 +80,7 @@ class BehaviorTree:
 
     def step(self, bot):
         if self.current_behavior_node is None:
-            raise ValueError("Current Node Must be a function, not None. (Bot: %s)" % bot)
+            raise ValueError("Current node must be a function, not None. (Bot: %s)" % bot)
         self.current_behavior_node = self.current_behavior_node.execute(bot)
 
     def return_tree_copy(self):

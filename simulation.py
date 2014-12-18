@@ -1,11 +1,9 @@
-import random
 import os
 from matplotlib import pyplot as plt
-import numpy as np
 import time
+import pygame
 
 from entities import *
-from intelligence import *
 
 
 class World:
@@ -21,6 +19,7 @@ class World:
             for entity in list(array):
                 entity.step()
                 if entity.dead:
+                    print("%s has died" % str(entity))
                     array.remove(entity)
 
     def add_bot(self, bot):
@@ -36,47 +35,17 @@ class World:
         self.plants.append(plant)
 
 
-if __name__ == '__main__':
-    start_time = time.time()
-    print("Starting Simulation...")
-    Earth = World(plant_limit=1000)
-    Earth.add_plant(Plant(0, 0, 5))
-    plant_numbers = []
-    bot_numbers = []
+def no_graphics_run():
 
     def run(ticks):
         for tick in range(ticks):
-            Earth.step()
+            earth.step()
             # Keep track of some info for graphing
-            plant_numbers.append(len(Earth.plants))
-            bot_numbers.append(len(Earth.bots))
+            plant_numbers.append(len(earth.plants))
+            bot_numbers.append(len(earth.bots))
 
     run(500)
 
-    # Create basic nodes
-    basic_behavior = BehaviorTree()
-    check_if_can_clone_node = BehaviorNode(Bot.can_i_reproduce)
-    create_clone_node = BehaviorNode(Bot.create_clone)
-    target_food_node = BehaviorNode(Bot.target_food)
-    move_to_target_node = BehaviorNode(Bot.move_towards_target)
-    check_near_target_node = BehaviorNode(Bot.am_i_near_target)
-    eat_node = BehaviorNode(Bot.eat_nearby_food)
-
-    # Wire the nodes together
-    check_if_can_clone_node.true_node = create_clone_node
-    check_if_can_clone_node.false_node = target_food_node
-    create_clone_node.next_node = check_if_can_clone_node
-    target_food_node.next_node = move_to_target_node
-    move_to_target_node.next_node = check_near_target_node
-    check_near_target_node.false_node = move_to_target_node
-    check_near_target_node.true_node = eat_node
-    eat_node.next_node = check_if_can_clone_node
-
-    basic_behavior.behavior_nodes = [check_if_can_clone_node, create_clone_node, target_food_node,
-                                     move_to_target_node, check_near_target_node, eat_node]
-
-    basic_behavior.current_behavior_node = check_if_can_clone_node
-    Earth.add_bot(Bot(0, 0, 200, behavior_tree=basic_behavior.return_tree_copy()))
     run(1000)
 
     def graph_results():
@@ -85,7 +54,7 @@ if __name__ == '__main__':
         graph.subplots_adjust(wspace=0.4)
         graph.subplots_adjust(hspace=0.4)
         plant_dist = graph.add_subplot(2, 2, 1)
-        plant_dist.scatter([plant.x for plant in Earth.plants], [plant.y for plant in Earth.plants], s=2, lw=0)
+        plant_dist.scatter([plant.x for plant in earth.plants], [plant.y for plant in earth.plants], s=2, lw=0)
         plant_dist.set_xlabel('X')
         plant_dist.set_ylabel('Y')
 
@@ -95,7 +64,7 @@ if __name__ == '__main__':
         plant_nums.plot(range(0, len(plant_numbers)), plant_numbers)
 
         bot_dist = graph.add_subplot(2, 2, 3)
-        bot_dist.scatter([bot.x for bot in Earth.bots], [bot.y for bot in Earth.bots], s=2, lw=0)
+        bot_dist.scatter([bot.x for bot in earth.bots], [bot.y for bot in earth.bots], s=2, lw=0)
         bot_dist.set_xlabel('X')
         bot_dist.set_ylabel('Y')
 
@@ -113,4 +82,76 @@ if __name__ == '__main__':
         graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
 
     graph_results()
+
+
+class GraphicalSimulation:
+    def __init__(self, world):
+        pygame.init()
+        screen = pygame.display.set_mode((500, 500))
+        self.clock = pygame.time.Clock()
+        running = 1
+        tick = 0
+        self.world = world
+        center = screen.get_width()/2, screen.get_height()/2
+        # Run the simulation to get plants spread out
+        for i in range(1000):
+            self.world.step()
+        # Add a bot and display the simulation
+        behavior = GraphicalSimulation.create_basic_intelligence()
+        self.world.add_bot(Bot(0, 0, 250, behavior))
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = 0
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    running = 0
+            screen.fill((1, 2, 3))
+            pygame.display.flip()
+            # Do stuff
+            # Update the world
+            self.world.step()
+            # Draw the plants and bots
+            pixels = pygame.surfarray.pixels3d(screen)
+            for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
+                for entity in entity_list:
+                    # Offset the origin to half the screen dimensions
+                    x = entity.x + center[0]
+                    y = entity.y + center[1]
+                    pixels[x][y] = color
+                    # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
+            tick += 1
+            pygame.display.update()
+            self.clock.tick(15)
+        pygame.quit()
+
+    @staticmethod
+    def create_basic_intelligence():
+        check_reproduce_node = ConditionalNode(Bot.can_i_reproduce)
+        create_clone_node = StatementNode(Bot.create_clone)
+        target_food_node = StatementNode(Bot.target_food)
+        move_to_target_node = StatementNode(Bot.move_towards_target)
+        check_at_target_node = ConditionalNode(Bot.am_i_near_target)
+        eat_node = StatementNode(Bot.eat_nearby_food)
+
+        check_reproduce_node.assign_edges(create_clone_node, target_food_node)
+        create_clone_node.assign_edge(check_reproduce_node)
+        target_food_node.assign_edge(move_to_target_node)
+        move_to_target_node.assign_edge(check_at_target_node)
+        check_at_target_node.assign_edges(eat_node, move_to_target_node)
+        eat_node.assign_edge(check_reproduce_node)
+
+        behavior = BehaviorTree()
+        behavior.behavior_nodes = [check_reproduce_node, create_clone_node, target_food_node,
+                                   move_to_target_node, check_at_target_node, eat_node]
+        behavior.current_behavior_node = target_food_node
+        return behavior
+
+if __name__ == '__main__':
+    print("Starting Simulation...")
+    start_time = time.time()
+    earth = World(plant_limit=300)
+    earth.add_plant(Plant(0, 0, 5))
+    plant_numbers = []
+    bot_numbers = []
+    GraphicalSimulation(earth)
     print("Elapsed seconds:", time.time() - start_time)
