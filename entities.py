@@ -19,6 +19,8 @@ class Bot(BaseSimulationEntity):
         super().__init__(x_start, y_start, energy)
         self.behavior_tree = behavior_tree
         self.speed = 1
+        self.child_investment = 150
+        self.target_point = None
         Bot.counter += 1
         if name is None:
             self.name = "Bot_" + str(Bot.counter)
@@ -37,9 +39,57 @@ class Bot(BaseSimulationEntity):
         return self.name
 
     @staticmethod
+    @conditional
+    def can_i_reproduce(bot):
+        if bot.energy > bot.child_investment:
+            return True
+        return False
+
+    @staticmethod
     @statement
-    def rest(bot):
-        pass
+    def create_clone(bot):
+        child = Bot(bot.x + random.randint(-10, 10), bot.y + random.randint(-10, 10),
+                    bot.child_investment, behavior_tree=bot.behavior_tree.return_tree_copy())
+        child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
+        print("%s spawned %s" % (str(bot), str(child)))
+        bot.world.add_bot(child)
+
+    @staticmethod
+    @statement
+    def target_food(bot):
+        # TODO: switch to using signals to find distant location of food
+        arbitrary_plant = bot.world.plants[0]
+        bot.target_point = arbitrary_plant.x, arbitrary_plant.y
+
+    @staticmethod
+    @statement
+    def move_towards_target(bot):
+        x, y = bot.target_point[0] - bot.x, bot.target_point[1] - bot.y
+        distance = math.sqrt((x**2) + (y**2))
+        if distance > 0:
+            bot.x += x/float(distance)
+            bot.y += y/float(distance)
+
+    @staticmethod
+    @conditional
+    def am_i_near_target(bot):
+        if math.sqrt(((bot.target_point[0] - bot.x)**2) + ((bot.target_point[1] - bot.y)**2)) <= 2:
+            return True
+        return False
+
+    @staticmethod
+    @statement
+    def eat_nearby_food(bot):
+        # TODO: have bots use signals to find food within a small distance from them
+        for food in bot.world.plants:
+            if math.sqrt(((food.x - bot.x)**2) + ((food.y - bot.y)**2)) <= 3:
+                message = "Transferring "
+                energy = food.energy
+                message += str(energy) + " energy from " + str(food) + " to " + str(bot)
+                food.world.plants.remove(food)
+                bot.energy += energy
+                print(message)
+                break
 
 
 class Plant(BaseSimulationEntity):

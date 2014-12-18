@@ -39,7 +39,7 @@ class World:
 if __name__ == '__main__':
     start_time = time.time()
     print("Starting Simulation...")
-    Earth = World(plant_limit=2000)
+    Earth = World(plant_limit=1000)
     Earth.add_plant(Plant(0, 0, 5))
     plant_numbers = []
     bot_numbers = []
@@ -51,46 +51,66 @@ if __name__ == '__main__':
             plant_numbers.append(len(Earth.plants))
             bot_numbers.append(len(Earth.bots))
 
-    run(750)
+    run(500)
+
+    # Create basic nodes
     basic_behavior = BehaviorTree()
-    basic_node = BehaviorNode(Bot.rest)
-    basic_node.next_node = basic_node
-    basic_behavior.behavior_nodes = [basic_node]
-    basic_behavior.current_behavior_node = basic_behavior.behavior_nodes[0]
-    for i in range(50):
-        Earth.add_bot(Bot(random.randint(-50, 50), random.randint(-50, 50), 200,
-                          behavior_tree=basic_behavior.return_tree_copy()))
-    run(750)
+    check_if_can_clone_node = BehaviorNode(Bot.can_i_reproduce)
+    create_clone_node = BehaviorNode(Bot.create_clone)
+    target_food_node = BehaviorNode(Bot.target_food)
+    move_to_target_node = BehaviorNode(Bot.move_towards_target)
+    check_near_target_node = BehaviorNode(Bot.am_i_near_target)
+    eat_node = BehaviorNode(Bot.eat_nearby_food)
 
-    # Create some graphs to get a sense of what's going on
-    graph = plt.figure()
-    graph.subplots_adjust(wspace=0.4)
-    graph.subplots_adjust(hspace=0.4)
-    plant_dist = graph.add_subplot(2, 2, 1)
-    plant_dist.scatter([plant.x for plant in Earth.plants], [plant.y for plant in Earth.plants], s=2, lw=0)
-    plant_dist.set_xlabel('X')
-    plant_dist.set_ylabel('Y')
+    # Wire the nodes together
+    check_if_can_clone_node.true_node = create_clone_node
+    check_if_can_clone_node.false_node = target_food_node
+    create_clone_node.next_node = check_if_can_clone_node
+    target_food_node.next_node = move_to_target_node
+    move_to_target_node.next_node = check_near_target_node
+    check_near_target_node.false_node = move_to_target_node
+    check_near_target_node.true_node = eat_node
+    eat_node.next_node = check_if_can_clone_node
 
-    plant_nums = graph.add_subplot(2, 2, 2)
-    plant_nums.set_xlabel('Time')
-    plant_nums.set_ylabel('Number of Plants')
-    plant_nums.plot(range(0, len(plant_numbers)), plant_numbers)
+    basic_behavior.behavior_nodes = [check_if_can_clone_node, create_clone_node, target_food_node,
+                                     move_to_target_node, check_near_target_node, eat_node]
 
-    bot_dist = graph.add_subplot(2, 2, 3)
-    bot_dist.scatter([bot.x for bot in Earth.bots], [bot.y for bot in Earth.bots], s=2, lw=0)
-    bot_dist.set_xlabel('X')
-    bot_dist.set_ylabel('Y')
+    basic_behavior.current_behavior_node = check_if_can_clone_node
+    Earth.add_bot(Bot(0, 0, 200, behavior_tree=basic_behavior.return_tree_copy()))
+    run(1000)
 
-    bot_nums = graph.add_subplot(2, 2, 4)
-    bot_nums.plot(range(0, len(bot_numbers)), bot_numbers,)
-    bot_nums.set_xlabel('Time')
-    bot_nums.set_ylabel('Number of Bots')
+    def graph_results():
+        # Create some graphs to get a sense of what's going on
+        graph = plt.figure()
+        graph.subplots_adjust(wspace=0.4)
+        graph.subplots_adjust(hspace=0.4)
+        plant_dist = graph.add_subplot(2, 2, 1)
+        plant_dist.scatter([plant.x for plant in Earth.plants], [plant.y for plant in Earth.plants], s=2, lw=0)
+        plant_dist.set_xlabel('X')
+        plant_dist.set_ylabel('Y')
 
-    # Make all subplot axes tick labels smaller and give them a title
-    for subplot, title in [(plant_dist, 'Plant Distribution'), (plant_nums, 'Plant Numbers'),
-                           (bot_dist, 'Bot Distribution'), (bot_nums, 'Bot Numbers')]:
-        subplot.tick_params(labelsize=6)
-        subplot.set_title(title)
+        plant_nums = graph.add_subplot(2, 2, 2)
+        plant_nums.set_xlabel('Time')
+        plant_nums.set_ylabel('Number of Plants')
+        plant_nums.plot(range(0, len(plant_numbers)), plant_numbers)
 
-    graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
+        bot_dist = graph.add_subplot(2, 2, 3)
+        bot_dist.scatter([bot.x for bot in Earth.bots], [bot.y for bot in Earth.bots], s=2, lw=0)
+        bot_dist.set_xlabel('X')
+        bot_dist.set_ylabel('Y')
+
+        bot_nums = graph.add_subplot(2, 2, 4)
+        bot_nums.plot(range(0, len(bot_numbers)), bot_numbers,)
+        bot_nums.set_xlabel('Time')
+        bot_nums.set_ylabel('Number of Bots')
+
+        # Make all subplot axes tick labels smaller and give them a title
+        for subplot, title in [(plant_dist, 'Plant Distribution'), (plant_nums, 'Plant Numbers'),
+                               (bot_dist, 'Bot Distribution'), (bot_nums, 'Bot Numbers')]:
+            subplot.tick_params(labelsize=6)
+            subplot.set_title(title)
+
+        graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
+
+    graph_results()
     print("Elapsed seconds:", time.time() - start_time)

@@ -53,6 +53,9 @@ class BehaviorNode:
         else:
             raise LookupError("Function %s is not registered as a statement or condition" % self.function)
 
+    def __repr__(self):
+        return self.function.__name__
+
 
 class BehaviorTree:
     def __init__(self):
