@@ -117,17 +117,18 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def eat_nearby_food(bot):
-        # TODO: have bots use signals to find food within a small distance from them
         if bot.energy < bot.max_energy:
-            for food in bot.world.plants:
-                if math.sqrt(((food.x - bot.x)**2) + ((food.y - bot.y)**2)) <= 4:
-                    energy = food.energy
-                    food.energy = 0
-                    food.dead = True
-                    bot.energy += energy
-                    # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
-                    # print(message)
-                    break
+            bot.signal = StaticSignal(bot.x, bot.y, 3, bot)
+            bot.signal.step()
+            if bot.signal.detected_objects:
+                for entity in bot.signal.detected_objects:
+                    if isinstance(entity, Plant):
+                        energy = entity.energy
+                        entity.energy = 0
+                        entity.dead = True
+                        bot.energy += energy
+                        # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
+                        # print(message)
 
 
 class Plant(BaseSimulationEntity):
@@ -183,13 +184,24 @@ class Signal(BaseSimulationEntity):
         self.world = owner.world
         self.detected_objects = []
         self.diameter = 8
-        self.radius = self.diameter/2
-        self.speed = 2
+        self.speed = 0
         Signal.counter += 1
         if name:
             self.name = name
         else:
             self.name = 'Signal_' + str(Signal.counter)
+
+    def step(self):
+        self.detected_objects = []
+        if self.world.kd_tree:
+            distances, indexes = self.world.kd_tree.query(np.array(
+                (self.x, self.y)), k=3, distance_upper_bound=self.diameter//2)
+            for distance_index, distance in enumerate(distances):
+                if distance != np.inf:
+                    entity = self.world.all_entities[indexes[distance_index]]
+                    if entity not in self.detected_objects:
+                        self.detected_objects.append(entity)
+        super().step()
 
     def __repr__(self):
         return self.name
@@ -199,15 +211,16 @@ class StaticSignal(Signal):
     def __init__(self, x, y, energy, owner, name=None):
         super().__init__(x, y, energy, owner, name)
         self.speed = 0
+        self.diameter = 4
 
     def step(self):
-        # TODO: Have the signal query the world for information
         super().step()
 
 
 class MobileSignal(Signal):
     def __init__(self, x, y, radians, energy, owner, name=None):
         super().__init__(x, y, energy, owner, name)
+        self.speed = 2
         self.radians = radians
         self.x_diff = self.speed * math.cos(radians)
         self.y_diff = self.speed * math.sin(radians)
@@ -215,13 +228,4 @@ class MobileSignal(Signal):
     def step(self):
         self.x += self.x_diff
         self.y += self.y_diff
-        self.detected_objects = []
-        if self.world.kd_tree:
-            distances, indexes = self.world.kd_tree.query(np.array(
-                (self.x, self.y)), k=3, distance_upper_bound=self.radius)
-            for distance_index, distance in enumerate(distances):
-                if distance != np.inf:
-                    entity = self.world.all_entities[indexes[distance_index]]
-                    if entity not in self.detected_objects:
-                        self.detected_objects.append(entity)
         super().step()

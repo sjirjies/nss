@@ -56,15 +56,16 @@ class World:
             self.all_entities.extend(entity_list)
 
     def build_kd_tree(self):
-        x_array = [p.x for p in self.all_entities]
-        y_array = [p.y for p in self.all_entities]
-        number_entities = len(self.all_entities)
-        x_array = np.array(x_array)
-        y_array = np.array(y_array)
-        x_array = np.reshape(x_array, (number_entities, 1))
-        y_array = np.reshape(y_array, (number_entities, 1))
-        point_locations = np.hstack((x_array, y_array))
-        self.kd_tree = cKDTree(point_locations, leafsize=10)
+        if len(self.all_entities) > 0:
+            x_array = [p.x for p in self.all_entities]
+            y_array = [p.y for p in self.all_entities]
+            number_entities = len(self.all_entities)
+            x_array = np.array(x_array)
+            y_array = np.array(y_array)
+            x_array = np.reshape(x_array, (number_entities, 1))
+            y_array = np.reshape(y_array, (number_entities, 1))
+            point_locations = np.hstack((x_array, y_array))
+            self.kd_tree = cKDTree(point_locations, leafsize=15)
 
 
 def create_basic_intelligence():
@@ -183,6 +184,8 @@ class SimulationData:
 
 class GraphicalSimulation:
     def __init__(self, world, plant_ticks, collect_data=True):
+        # Set an environment variable to center the pygame screen
+        os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         screen_width, screen_height = 500, 500
         if world.boundary_sizes:
@@ -213,7 +216,6 @@ class GraphicalSimulation:
                     running = 0
             screen.fill((0, 0, 0))
             pygame.display.flip()
-            # Do stuff
             # Update the world
             self.world.step()
             # Collect Data if enabled
@@ -233,10 +235,16 @@ class GraphicalSimulation:
                 diameter = signal.diameter
                 left = signal.x - (diameter/2)
                 top = signal.y - (diameter/2)
-                pygame.draw.ellipse(screen, (40, 50, 200), (left, top, diameter, diameter), 1)
+                signal_color = (40, 50, 200)
+                if isinstance(signal, StaticSignal):
+                    signal_color = (100, 130, 250)
+                pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
             tick += 1
             pygame.display.update()
             self.clock.tick(10)
+            # If we have no more entities then end the simulation
+            if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
+                running = False
         if sim_data:
             sim_data.graph_results()
         pygame.quit()
