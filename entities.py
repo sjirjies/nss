@@ -1,6 +1,8 @@
 import random
 import math
 from intelligence import *
+import scipy.spatial
+import numpy as np
 
 
 class BaseSimulationEntity:
@@ -44,6 +46,7 @@ class Bot(BaseSimulationEntity):
         if self.signal and self.signal.dead:
             self.signal = None
         self.behavior_tree.step(self)
+        # Check if the bot has created a new signal
         if self.signal and self.signal not in self.world.signals:
             self.world.signals.append(self.signal)
         super().step()
@@ -181,6 +184,7 @@ class Signal(BaseSimulationEntity):
         self.world = owner.world
         self.detected_objects = []
         self.diameter = 8
+        self.radius = self.diameter/2
         self.speed = 2
         Signal.counter += 1
         if name:
@@ -195,6 +199,7 @@ class Signal(BaseSimulationEntity):
 class StaticSignal(Signal):
     def __init__(self, x, y, energy, owner, name=None):
         super().__init__(x, y, energy, owner, name)
+        self.speed = 0
 
     def step(self):
         # TODO: Have the signal query the world for information
@@ -211,11 +216,14 @@ class MobileSignal(Signal):
     def step(self):
         self.x += self.x_diff
         self.y += self.y_diff
-        # TODO: Replace this with something better, like a KD-Tree
-        # self.detected_objects = []
-        for entity_list in self.owner.world.bots, self.owner.world.plants:
-            for item in entity_list:
-                if math.sqrt(((item.x - self.x)**2) + ((item.y - self.y)**2)) <= self.diameter/2:
-                    if item not in self.detected_objects:
-                        self.detected_objects.append(item)
+        self.detected_objects = []
+        if self.world.kd_tree:
+            # print(self.world.kd_tree.query_ball_point((self.x, self.y), self.radius))
+            distances, indexes = self.world.kd_tree.query(np.array(
+                (self.x, self.y)), k=5, distance_upper_bound=self.diameter/2+1)
+            for distance_index, distance in enumerate(distances):
+                if distance != np.inf:
+                    entity = self.world.all_entities[indexes[distance_index]]
+                    if entity not in self.detected_objects:
+                        self.detected_objects.append(entity)
         super().step()

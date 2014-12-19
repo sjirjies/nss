@@ -14,8 +14,14 @@ class World:
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
+        self.kd_tree = None
+        self.all_entities = []
 
     def step(self):
+        # Update the list of all entities
+        self.aggregate_entities()
+        # Build a new kd tree to account for movement from the last tick
+        self.build_kd_tree()
         # Update all plants then all bots
         for array in [self.plants, self.bots, self.signals]:
             for entity in list(array):
@@ -42,6 +48,22 @@ class World:
             return False
         plant.world = self
         self.plants.append(plant)
+
+    def aggregate_entities(self):
+        self.all_entities = []
+        for entity_list in (self.plants, self.bots, self.signals):
+            self.all_entities.extend(entity_list)
+
+    def build_kd_tree(self):
+        x_array = [p.x for p in self.all_entities]
+        y_array = [p.y for p in self.all_entities]
+        number_entities = len(self.all_entities)
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
+        x_array = np.reshape(x_array, (number_entities, 1))
+        y_array = np.reshape(y_array, (number_entities, 1))
+        point_locations = np.hstack((x_array, y_array))
+        self.kd_tree = scipy.spatial.KDTree(point_locations, leafsize=10)
 
 
 def create_basic_intelligence():
@@ -132,24 +154,26 @@ class SimulationData:
         entity_dist.set_xlabel('X')
         entity_dist.set_ylabel('Y')
 
-        plant_nums = graph.add_subplot(2, 2, 2)
-        plant_nums.set_xlabel('Time')
-        plant_nums.set_ylabel('Number of Plants')
-        plant_nums.plot(range(0, len(self.plant_numbers)), self.plant_numbers)
+        entity_nums = graph.add_subplot(2, 2, 2)
+        entity_nums.set_xlabel('Time')
+        entity_nums.set_ylabel('Number of Plants')
+        for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'),
+                                         (self.bot_numbers, 'Bots', 'm'),
+                                         (self.signal_numbers, 'Signals', 'b')):
+            entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color)
+        entity_nums.legend(loc='upper left', labelspacing=0, borderpad=0, prop={'size': 7})
 
         bot_dist = graph.add_subplot(2, 2, 3)
-        bot_dist.scatter([bot.x for bot in self.world.bots], [bot.y for bot in self.world.bots], s=2, lw=0)
         bot_dist.set_xlabel('X')
         bot_dist.set_ylabel('Y')
 
         bot_nums = graph.add_subplot(2, 2, 4)
-        bot_nums.plot(range(0, len(self.bot_numbers)), self.bot_numbers,)
-        bot_nums.set_xlabel('Time')
-        bot_nums.set_ylabel('Number of Bots')
+        bot_nums.set_xlabel('X')
+        bot_nums.set_ylabel('Y')
 
         # Make all subplot axes tick labels smaller and give them a title
-        for subplot, title in [(entity_dist, 'Entity Distribution'), (plant_nums, 'Plant Numbers'),
-                               (bot_dist, 'Bot Distribution'), (bot_nums, 'Bot Numbers')]:
+        for subplot, title in [(entity_dist, 'Entity Distribution'), (entity_nums, 'Entity Numbers'),
+                               (bot_dist, 'Not Used Yet...'), (bot_nums, 'Not Used Yet...')]:
             subplot.tick_params(labelsize=6)
             subplot.set_title(title)
         print("Saving Graph...")
@@ -226,6 +250,6 @@ def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, 
 if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
-    earth = World(plant_limit=200, boundary_sizes=(100, 100))
-    run_simulation(earth, 500, 1000, graphics=True)
+    earth = World(plant_limit=500, boundary_sizes=(200, 200))
+    run_simulation(earth, 500, 600, graphics=False)
     print("Elapsed seconds:", time.time() - start_time)
