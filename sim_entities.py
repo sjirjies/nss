@@ -6,14 +6,17 @@ import numpy as np
 
 class BaseSimulationEntity:
     def __init__(self, x, y, energy):
-        self.name = 'BaseEntity'
+        self.name = 'entity'
         self.world = None
         self.x = x
         self.y = y
         self.energy = energy
         self.dead = False
+        self.birthday = None
+        self.age = 0
 
     def step(self):
+        self.age += 1
         self.world.drain_energy_from_entity(1, self)
         if self.energy < 1:
             self.dead = True
@@ -47,7 +50,7 @@ class Bot(BaseSimulationEntity):
         self.behavior_tree.step(self)
         # Check if the bot has created a new signal
         if self.signal and self.signal not in self.world.signals:
-            self.world.signals.append(self.signal)
+            self.world.add_entity(self.signal)
         super().step()
 
     @staticmethod
@@ -65,7 +68,7 @@ class Bot(BaseSimulationEntity):
         child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
         # print("%s spawned %s" % (str(bot), str(child)))
-        bot.world.add_bot(child)
+        bot.world.add_entity(child)
 
     @staticmethod
     @statement
@@ -173,7 +176,7 @@ class Plant(BaseSimulationEntity):
                 # Create a baby plant and give it energy from the parent
                 baby_plant = Plant(child_x, child_y, 0)
                 self.world.transfer_energy_between_entities(self.child_investment, donor=self, recipient=baby_plant)
-                self.world.add_plant(baby_plant)
+                self.world.add_entity(baby_plant)
 
 
 class Signal(BaseSimulationEntity):

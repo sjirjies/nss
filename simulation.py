@@ -1,5 +1,6 @@
 import os
 from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
 import time
 import pygame
 from scipy.spatial import cKDTree
@@ -9,6 +10,7 @@ from sim_entities import *
 
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
+        self.tick_number = 0
         self.bots = []
         self.plants = []
         self.signals = []
@@ -20,6 +22,7 @@ class World:
         self.all_entities = []
 
     def step(self):
+        self.tick_number += 1
         # Update the list of all entities
         self.aggregate_entities()
         # Build a new kd tree to account for movement from the last tick
@@ -42,19 +45,33 @@ class World:
                         entity.y = entity.y % self.boundary_sizes[1]
                     entity.step()
 
-
-    def add_bot(self, bot):
-        if (self.bot_limit and len(self.bots) >= self.bot_limit) or bot.energy == 0:
+    def _add_plant(self, plant):
+        if self.plant_limit and len(self.plants) >= self.plant_limit:
             return False
-        else:
-            bot.world = self
-            self.bots.append(bot)
-
-    def add_plant(self, plant):
-        if (self.plant_limit and len(self.plants) >= self.plant_limit) or plant.energy == 0:
-            return False
-        plant.world = self
         self.plants.append(plant)
+
+    def _add_bot(self, bot):
+        if self.bot_limit and len(self.bots) >= self.bot_limit:
+            return False
+        self.bots.append(bot)
+
+    def _add_signal(self, signal):
+        self.signals.append(signal)
+
+    def add_entity(self, entity):
+        # Note: add energy to entities before adding them, or they will be refused.
+        if entity.energy == 0:
+            return False
+        if isinstance(entity, Signal):
+            self._add_signal(entity)
+        elif isinstance(entity, Plant):
+            self._add_plant(entity)
+        elif isinstance(entity, Bot):
+            self._add_bot(entity)
+        else:
+            raise ValueError("%s is %s. Must be either a Signal, Plant, or Bot" % (entity, type(entity)))
+        entity.world = self
+        entity.birthday = self.tick_number
 
     def aggregate_entities(self):
         self.all_entities = []
@@ -144,11 +161,11 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
                 print(" Finished Tick %d / %d" % (tick, ticks))
 
     center = world.boundary_sizes[0]/2, world.boundary_sizes[1]/2
-    world.add_plant(Plant(center[0], center[1], 50))
+    world.add_entity(Plant(center[0], center[1], 50))
     print("Running %s ticks with just plants..." % plant_growth_ticks)
     run(plant_growth_ticks, with_bots=False)
     behavior = create_basic_intelligence()
-    world.add_bot(Bot(center[0], center[1], 300, behavior))
+    world.add_entity(Bot(center[0], center[1], 300, behavior))
     print("Running %s ticks with bots added..." % additional_ticks)
     run(additional_ticks, with_bots=True)
     if sim_data:
@@ -170,42 +187,55 @@ class SimulationData:
     def graph_results(self):
         print("Creating Graph...")
         # Create some graphs to get a sense of what's going on
+        grid = gridspec.GridSpec(2, 2)
+        sub_graph_title_size = 8
+        axes_text_size = 7
+        legend_font_size = 7
+        axes_tick_font_size = 6
+
         graph = plt.figure()
-        graph.subplots_adjust(wspace=0.4)
-        graph.subplots_adjust(hspace=0.4)
-        entity_dist = graph.add_subplot(2, 2, 1)
+        graph.subplots_adjust(wspace=0.15)
+        graph.subplots_adjust(hspace=0.15)
+
+        entity_dist = graph.add_subplot(grid[0, 0])
         entity_dist.scatter([plant.x for plant in self.world.plants], [plant.y for plant in self.world.plants],
                             s=2, lw=0, label='Plants', c='g')
         entity_dist.scatter([bot.x for bot in self.world.bots], [bot.y for bot in self.world.bots],
                             s=3, lw=0, label='Bots', c='m')
-        entity_dist.legend(loc='upper left', labelspacing=0, borderpad=0, prop={'size': 7})
-        entity_dist.set_xlabel('X')
-        entity_dist.set_ylabel('Y')
+        entity_dist.legend(loc='upper left', labelspacing=0, borderpad=0, fontsize=legend_font_size)
+        x_limits = 0, self.world.boundary_sizes[0]
+        y_limits = 0, self.world.boundary_sizes[1]
+        if self.world.boundary_sizes:
+            # Since the world has no bounds, find the spatial span of the entities
+            x_points = [point.x for point in self.world.all_entities]
+            y_points = [point.y for point in self.world.all_entities]
+            x_limits = min(x_points), max(x_points)
+            y_limits = min(x_points), max(y_points)
+        entity_dist.set_xlim(x_limits)
+        entity_dist.set_ylim(y_limits)
+        entity_dist.set_xlabel('X', size=axes_text_size)
+        entity_dist.set_ylabel('Y', size=axes_text_size)
 
-        entity_nums = graph.add_subplot(2, 2, 2)
-        entity_nums.set_xlabel('Tick')
-        entity_nums.set_ylabel('Number of Plants')
-        for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'),
-                                         (self.bot_numbers, 'Bots', 'm'),
+        entity_nums = graph.add_subplot(grid[1, :])
+        entity_nums.set_xlabel('Tick', size=axes_text_size)
+        entity_nums.set_ylabel('Number of Plants', size=axes_text_size)
+        for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'), (self.bot_numbers, 'Bots', 'm'),
                                          (self.signal_numbers, 'Signals', 'b')):
             entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color)
-        entity_nums.legend(loc='upper left', labelspacing=0, borderpad=0, prop={'size': 7})
+        entity_nums.legend(loc='upper left', labelspacing=0, borderpad=0, fontsize=legend_font_size)
+        entity_nums.set_xlim((0, self.world.tick_number))
 
-        bot_dist = graph.add_subplot(2, 2, 3)
-        bot_dist.set_xlabel('X')
-        bot_dist.set_ylabel('Y')
-
-        bot_nums = graph.add_subplot(2, 2, 4)
-        bot_nums.set_xlabel('X')
-        bot_nums.set_ylabel('Y')
+        unused_graph = graph.add_subplot(grid[0, 1])
+        unused_graph.set_xlabel('X', size=axes_text_size)
+        unused_graph.set_ylabel('Y', size=axes_text_size)
 
         # Make all subplot axes tick labels smaller and give them a title
         for subplot, title in [(entity_dist, 'Entity Distribution'), (entity_nums, 'Entity Numbers'),
-                               (bot_dist, 'Not Used Yet...'), (bot_nums, 'Not Used Yet...')]:
-            subplot.tick_params(labelsize=6)
-            subplot.set_title(title)
+                               (unused_graph, 'Not Yet Used...')]:
+            subplot.tick_params(labelsize=axes_tick_font_size)
+            subplot.set_title(title, size=sub_graph_title_size)
         print("Saving Graph...")
-        graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=100)
+        graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=115, bbox_inches='tight')
 
 
 class GraphicalSimulation:
@@ -222,7 +252,7 @@ class GraphicalSimulation:
         tick = 0
         self.world = world
         # Run the simulation to get plants spread out
-        self.world.add_plant(Plant(screen_width/2, screen_height/2, 5))
+        self.world.add_entity(Plant(screen_width/2, screen_height/2, 5))
         if collect_data:
             sim_data = SimulationData(self.world)
         else:
@@ -233,7 +263,7 @@ class GraphicalSimulation:
                 sim_data.poll_world_for_data()
         # Add a bot and display the simulation
         behavior = create_basic_intelligence()
-        self.world.add_bot(Bot(screen_width/2, screen_height/2, 250, behavior))
+        self.world.add_entity(Bot(screen_width/2, screen_height/2, 250, behavior))
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -267,7 +297,7 @@ class GraphicalSimulation:
                 pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
             tick += 1
             pygame.display.update()
-            self.clock.tick(30)
+            self.clock.tick(15)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
                 running = False
@@ -286,5 +316,5 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
     earth = World(plant_limit=500, boundary_sizes=(200, 200))
-    run_simulation(earth, 500, 1000, graphics=True)
+    run_simulation(earth, 500, 5000, graphics=False)
     print("Elapsed seconds:", time.time() - start_time)
