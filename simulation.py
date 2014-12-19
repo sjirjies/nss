@@ -7,6 +7,8 @@ from scipy.spatial import cKDTree
 
 from sim_entities import *
 
+import line_profiler
+
 
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
@@ -231,7 +233,7 @@ class SimulationData:
 
         # Make all subplot axes tick labels smaller and give them a title
         for subplot, title in [(entity_dist, 'Entity Distribution'), (entity_nums, 'Entity Numbers'),
-                               (unused_graph, 'Not Yet Used...')]:
+                               (unused_graph, 'Not Used Yet...')]:
             subplot.tick_params(labelsize=axes_tick_font_size)
             subplot.set_title(title, size=sub_graph_title_size)
         print("Saving Graph...")
@@ -287,6 +289,8 @@ class GraphicalSimulation:
                     if 0 <= x <= screen_width and 0 <= y <= screen_height:
                         pixels[x][y] = color
                     # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
+            del pixels
+            screen.lock()
             for signal in self.world.signals:
                 diameter = signal.diameter
                 left = signal.x - (diameter/2)
@@ -295,6 +299,7 @@ class GraphicalSimulation:
                 if isinstance(signal, StaticSignal):
                     signal_color = (100, 130, 250)
                 pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
+            screen.unlock()
             tick += 1
             pygame.display.update()
             self.clock.tick(15)
@@ -316,5 +321,5 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
     earth = World(plant_limit=500, boundary_sizes=(200, 200))
-    run_simulation(earth, 500, 5000, graphics=False)
+    run_simulation(earth, 500, 700, graphics=True)
     print("Elapsed seconds:", time.time() - start_time)

@@ -1,4 +1,3 @@
-import random
 import math
 from intelligence import *
 import numpy as np
@@ -63,7 +62,7 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def create_clone(bot):
-        child = Bot(bot.x + random.randint(-3, 3), bot.y + random.randint(-3, 3), 0,
+        child = Bot(bot.x + np.random.random_integers(-3, 3), bot.y + np.random.random_integers(-3, 3), 0,
                     behavior_tree=bot.behavior_tree.return_tree_copy())
         child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
@@ -73,7 +72,7 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def launch_signal(bot):
-        bot.signal = MobileSignal(bot.x, bot.y, random.random()*2*math.pi, 0, bot)
+        bot.signal = MobileSignal(bot.x, bot.y, np.random.ranf()*2*math.pi, 0, bot)
         bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
 
     @staticmethod
@@ -167,10 +166,10 @@ class Plant(BaseSimulationEntity):
     def check_reproduction(self):
         if self.energy >= (self.max_energy - self.child_investment):
             # Check if reproduction randomly allowed
-            if random.randint(0, 100) < self.percent_reproduction_chance:
+            if np.random.random_integers(0, 100) < self.percent_reproduction_chance:
                 # Find the new location of the child
-                travel_distance = random.randint(self.spore_min_travel, self.spore_max_travel)
-                travel_angle_rads = random.random() * 2 * math.pi
+                travel_distance = np.random.random_integers(self.spore_min_travel, self.spore_max_travel)
+                travel_angle_rads = np.random.ranf() * 2 * math.pi
                 child_x = self.x + (travel_distance * math.sin(travel_angle_rads))
                 child_y = self.y + (travel_distance * math.cos(travel_angle_rads))
                 # Create a baby plant and give it energy from the parent
