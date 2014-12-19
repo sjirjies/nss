@@ -14,7 +14,7 @@ class BaseSimulationEntity:
         self.dead = False
 
     def step(self):
-        self.energy -= 1
+        self.world.drain_energy_from_entity(1, self)
         if self.energy < 1:
             self.dead = True
 
@@ -60,17 +60,18 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def create_clone(bot):
-        child = Bot(bot.x + random.randint(-3, 3), bot.y + random.randint(-3, 3),
-                    bot.child_investment, behavior_tree=bot.behavior_tree.return_tree_copy())
+        child = Bot(bot.x + random.randint(-3, 3), bot.y + random.randint(-3, 3), 0,
+                    behavior_tree=bot.behavior_tree.return_tree_copy())
         child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
-        bot.energy -= bot.child_investment
+        bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
         # print("%s spawned %s" % (str(bot), str(child)))
         bot.world.add_bot(child)
 
     @staticmethod
     @statement
     def launch_signal(bot):
-        bot.signal = MobileSignal(bot.x, bot.y, random.random()*2*math.pi, 10, bot)
+        bot.signal = MobileSignal(bot.x, bot.y, random.random()*2*math.pi, 0, bot)
+        bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
 
     @staticmethod
     @conditional
@@ -87,7 +88,7 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @conditional
     def has_signal_found_food(bot):
-        if bot.signal and bot.signal.detected_objects and bot.signal.energy > 2:
+        if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
             for item in bot.signal.detected_objects:
                 # TODO: get rid of isinstance and use something better
                 if isinstance(item, Plant):
@@ -118,15 +119,15 @@ class Bot(BaseSimulationEntity):
     @statement
     def eat_nearby_food(bot):
         if bot.energy < bot.max_energy:
-            bot.signal = StaticSignal(bot.x, bot.y, 3, bot)
+            if bot.signal:
+                bot.signal.dead = True
+            bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
+            bot.world.transfer_energy_between_entities(3, donor=bot, recipient=bot.signal)
             bot.signal.step()
             if bot.signal.detected_objects:
                 for entity in bot.signal.detected_objects:
                     if isinstance(entity, Plant):
-                        energy = entity.energy
-                        entity.energy = 0
-                        entity.dead = True
-                        bot.energy += energy
+                        bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
                         # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
                         # print(message)
 
@@ -153,7 +154,7 @@ class Plant(BaseSimulationEntity):
     def step(self):
         # Check if the plant can grow
         if self.energy < self.max_energy:
-            self.energy += self.growth_rate
+            self.world.give_energy_to_entity(self.growth_rate, self)
         self.check_reproduction()
         # Check for death
         if self.age > self.max_age:
@@ -169,9 +170,9 @@ class Plant(BaseSimulationEntity):
                 travel_angle_rads = random.random() * 2 * math.pi
                 child_x = self.x + (travel_distance * math.sin(travel_angle_rads))
                 child_y = self.y + (travel_distance * math.cos(travel_angle_rads))
-                # Take energy from the parent and give to the child
-                self.energy -= self.child_investment
-                baby_plant = Plant(child_x, child_y, self.child_investment)
+                # Create a baby plant and give it energy from the parent
+                baby_plant = Plant(child_x, child_y, 0)
+                self.world.transfer_energy_between_entities(self.child_investment, donor=self, recipient=baby_plant)
                 self.world.add_plant(baby_plant)
 
 

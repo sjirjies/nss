@@ -4,17 +4,18 @@ import time
 import pygame
 from scipy.spatial import cKDTree
 
-from entities import *
+from sim_entities import *
 
 
 class World:
-    def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None):
+    def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
         self.bots = []
         self.plants = []
         self.signals = []
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
+        self.energy_pool = energy_pool
         self.kd_tree = None
         self.all_entities = []
 
@@ -26,26 +27,31 @@ class World:
         # Update all plants then all bots
         for array in [self.plants, self.bots, self.signals]:
             for entity in list(array):
-                # Make sure the entity wraps around the boundaries
-                if self.boundary_sizes:
-                    entity.x = entity.x % self.boundary_sizes[0]
-                    entity.y = entity.y % self.boundary_sizes[1]
-                entity.step()
                 # Take care of dead entities
                 if entity.dead:
                     # if isinstance(entity, Bot):
                     #    print("%s has died" % str(entity))
+                    # Transfer any remaining energy back into the world
+                    if self.energy_pool is not None and entity.energy > 0:
+                        self.energy_pool += entity.energy
                     array.remove(entity)
+                else:
+                    # Make sure the entity wraps around the boundaries
+                    if self.boundary_sizes:
+                        entity.x = entity.x % self.boundary_sizes[0]
+                        entity.y = entity.y % self.boundary_sizes[1]
+                    entity.step()
+
 
     def add_bot(self, bot):
-        if self.bot_limit and len(self.bots) >= self.bot_limit:
+        if (self.bot_limit and len(self.bots) >= self.bot_limit) or bot.energy == 0:
             return False
         else:
             bot.world = self
             self.bots.append(bot)
 
     def add_plant(self, plant):
-        if self.plant_limit and len(self.plants) >= self.plant_limit:
+        if (self.plant_limit and len(self.plants) >= self.plant_limit) or plant.energy == 0:
             return False
         plant.world = self
         self.plants.append(plant)
@@ -66,6 +72,28 @@ class World:
             y_array = np.reshape(y_array, (number_entities, 1))
             point_locations = np.hstack((x_array, y_array))
             self.kd_tree = cKDTree(point_locations, leafsize=15)
+
+    def give_energy_to_entity(self, energy_to_give, entity):
+        if self.energy_pool is not None:
+            if self.energy_pool < energy_to_give:
+                energy_to_give = self.energy_pool
+            self.energy_pool -= energy_to_give
+        entity.energy += energy_to_give
+
+    def drain_energy_from_entity(self, energy_to_drain, entity):
+        if entity.energy <= energy_to_drain:
+            energy_to_drain = entity.energy
+            entity.dead = True
+        entity.energy -= energy_to_drain
+        if self.energy_pool is not None:
+            self.energy_pool += energy_to_drain
+
+    def transfer_energy_between_entities(self, energy_to_transfer, *, donor, recipient):
+        if donor.energy <= energy_to_transfer:
+            energy_to_transfer = donor.energy
+            donor.dead = True
+        donor.energy -= energy_to_transfer
+        recipient.energy += energy_to_transfer
 
 
 def create_basic_intelligence():
@@ -102,8 +130,6 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
         sim_data = SimulationData(world)
     else:
         sim_data = None
-    plant_numbers = []
-    bot_numbers = []
 
     def run(ticks, with_bots):
         for tick in range(ticks):
@@ -157,7 +183,7 @@ class SimulationData:
         entity_dist.set_ylabel('Y')
 
         entity_nums = graph.add_subplot(2, 2, 2)
-        entity_nums.set_xlabel('Time')
+        entity_nums.set_xlabel('Tick')
         entity_nums.set_ylabel('Number of Plants')
         for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'),
                                          (self.bot_numbers, 'Bots', 'm'),
@@ -241,7 +267,7 @@ class GraphicalSimulation:
                 pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
             tick += 1
             pygame.display.update()
-            self.clock.tick(10)
+            self.clock.tick(30)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
                 running = False
