@@ -2,6 +2,7 @@ import os
 from matplotlib import pyplot as plt
 import time
 import pygame
+from scipy.spatial import cKDTree
 
 from entities import *
 
@@ -63,7 +64,7 @@ class World:
         x_array = np.reshape(x_array, (number_entities, 1))
         y_array = np.reshape(y_array, (number_entities, 1))
         point_locations = np.hstack((x_array, y_array))
-        self.kd_tree = scipy.spatial.KDTree(point_locations, leafsize=10)
+        self.kd_tree = cKDTree(point_locations, leafsize=10)
 
 
 def create_basic_intelligence():
@@ -251,5 +252,5 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
     earth = World(plant_limit=500, boundary_sizes=(200, 200))
-    run_simulation(earth, 500, 600, graphics=False)
+    run_simulation(earth, 500, 1000, graphics=True)
     print("Elapsed seconds:", time.time() - start_time)

@@ -1,7 +1,6 @@
 import random
 import math
 from intelligence import *
-import scipy.spatial
 import numpy as np
 
 
@@ -218,9 +217,8 @@ class MobileSignal(Signal):
         self.y += self.y_diff
         self.detected_objects = []
         if self.world.kd_tree:
-            # print(self.world.kd_tree.query_ball_point((self.x, self.y), self.radius))
             distances, indexes = self.world.kd_tree.query(np.array(
-                (self.x, self.y)), k=5, distance_upper_bound=self.diameter/2+1)
+                (self.x, self.y)), k=3, distance_upper_bound=self.radius)
             for distance_index, distance in enumerate(distances):
                 if distance != np.inf:
                     entity = self.world.all_entities[indexes[distance_index]]
