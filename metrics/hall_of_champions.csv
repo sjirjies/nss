@@ -1,2 +1,3 @@
 name,birthday,age,energy,children,world_ticks,world_width,world_height,bot_limit,plant_limit,energy_pool,YYYY-MM-DD,seconds_run
-Bot_120,789,453,0,1,2099,200,200,-1,-1,100000,2014-12-20,38.68
+Bot_53,669,420,75,5,1089,200,200,-1,-1,100000,2014-12-20,15.6
+Bot_4,517,117,0,2,643,200,200,-1,-1,100000,2014-12-20,4.7

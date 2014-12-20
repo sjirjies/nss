@@ -211,10 +211,20 @@ class SimulationData:
         self.best_bot = Bot(0, 0, 0, name='Dummy_Bot')
         self.best_bot.birthday = 0
         self.directory = os.getcwd() + os.sep + 'metrics'
+        self.hall_champions_file_path = self.directory + os.sep + 'hall_of_champions.csv'
+        self.champions_intel_file_path = self.directory + os.sep + 'champions_intelligence.txt'
         # Create the metrics directory if it does not exist.
         if not os.path.exists(self.directory):
             print("Making metrics directory...")
             os.makedirs(self.directory)
+        # Create the champions csv if it does not exist and write the header to it
+        self.fieldnames = ('name', 'birthday', 'age', 'energy', 'children', 'world_ticks', 'world_width',
+                           'world_height', 'bot_limit', 'plant_limit', 'energy_pool', 'YYYY-MM-DD', 'seconds_run')
+        if not os.path.isfile(self.hall_champions_file_path):
+            print("Creating Hall of Champions record...")
+            with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
+                writer.writeheader()
 
     def poll_world_for_data(self):
         for data_list, world_list in ((self.plant_numbers, self.world.plants), (self.bot_numbers, self.world.bots),
@@ -233,10 +243,10 @@ class SimulationData:
     def save_metrics(self):
         self.graph_results()
         self.save_champion_bot_data()
-        print("Elapsed seconds:", round(time.time() - self.start_time, 2), "seconds.")
+        print("Total elapsed seconds:", round(time.time() - self.start_time, 2), "seconds.")
 
     def graph_results(self):
-        print("Creating Graph...")
+        print("Saving Graph...")
         # Create some graphs to get a sense of what's going on
         grid = gridspec.GridSpec(2, 2)
         sub_graph_title_size = 8
@@ -285,7 +295,6 @@ class SimulationData:
                                (unused_graph, 'Not Used Yet...')]:
             subplot.tick_params(labelsize=axes_tick_font_size)
             subplot.set_title(title, size=sub_graph_title_size)
-        print("Saving Graph...")
         graph.savefig(self.directory + os.sep + 'simulation.png', dpi=115, bbox_inches='tight')
 
     def save_champion_bot_data(self):
@@ -296,13 +305,7 @@ class SimulationData:
         today = time.strftime('%Y-%m-%d')
         print("Updating Hall of Champions...")
         with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
-            fieldnames = ('name', 'birthday', 'age', 'energy', 'children', 'world_ticks', 'world_width', 'world_height',
-                          'bot_limit', 'plant_limit', 'energy_pool', 'YYYY-MM-DD', 'seconds_run')
-            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            # If the file is empty, or brand new, write the header
-            if csv_file.readline(1) == '':
-                csv_file.seek(0)
-                writer.writeheader()
+            writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
             # Collect the values for the new row and write it to the CSV
             if self.world.boundary_sizes:
                 world_width, world_height = self.world.boundary_sizes
@@ -313,8 +316,8 @@ class SimulationData:
             energy_pool = '-1' if self.world.initialized_energy is None else self.world.initialized_energy
             values = (best.name, best.birthday, best.age, best.energy, best.number_children, self.world.tick_number,
                       world_width, world_height, bot_limit, plant_limit, energy_pool,
-                      today, round(time.time() - self.start_time, 2))
-            writer.writerow(dict(zip(fieldnames, values)))
+                      today, round(time.time() - self.start_time, 1))
+            writer.writerow(dict(zip(self.fieldnames, values)))
         print("Updating Champions Intelligence Text...")
         string = str(best) + ' on ' + today + '\n'
         for node in best.behavior_tree.behavior_nodes:
