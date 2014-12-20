@@ -39,9 +39,6 @@ class BaseBehaviorNode:
     def execute(self, bot):
         return self.function(bot)
 
-    def __repr__(self):
-        return str(self.node_number) + '_' + self.function.__name__
-
 
 class StatementNode(BaseBehaviorNode):
     def __init__(self, function):
@@ -54,6 +51,13 @@ class StatementNode(BaseBehaviorNode):
     def execute(self, bot):
         super().execute(bot)
         return self.next_node
+
+    def __str__(self):
+        if self.next_node is None:
+            next_name = 'None'
+        else:
+            next_name = str(self.next_node.node_number) + '_' + self.next_node.function.__name__
+        return str(self.node_number) + '_' + self.function.__name__ + ' -> ' + next_name
 
 
 class ConditionalNode(BaseBehaviorNode):
@@ -73,6 +77,17 @@ class ConditionalNode(BaseBehaviorNode):
         if result:
             return self.true_node
         return self.false_node
+
+    def __str__(self):
+        if self.true_node is None:
+            true_name = 'None'
+        else:
+            true_name = str(self.true_node.node_number) + '_' + self.true_node.function.__name__
+        if self.false_node is None:
+            false_name = 'None'
+        else:
+            false_name = str(self.false_node.node_number) + '_' + self.false_node.function.__name__
+        return str(self.node_number) + '_' + self.function.__name__ + ' ? ' + true_name + ' : ' + false_name
 
 
 class BehaviorGraph:

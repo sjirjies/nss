@@ -1,6 +1,7 @@
 import os
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+import csv
 import time
 import pygame
 from scipy.spatial import cKDTree
@@ -18,15 +19,18 @@ class World:
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
         if self.boundary_sizes:
-            self.half_boundaries = self.boundary_sizes[0]//2, self.boundary_sizes[1]//2
+            self.half_boundaries = self.boundary_sizes[0]/2, self.boundary_sizes[1]/2
         else:
             self.half_boundaries = None
         self.energy_pool = energy_pool
+        self.initialized_energy = self.energy_pool
         self.kd_tree = None
         self.all_entities = []
+        self.recently_dead_bots = []
 
     def step(self):
         self.tick_number += 1
+        self.recently_dead_bots = []
         # Update the list of all entities
         self.aggregate_entities()
         # Build a new kd tree to account for movement from the last tick
@@ -42,6 +46,8 @@ class World:
                     if self.energy_pool is not None and entity.energy > 0:
                         self.energy_pool += entity.energy
                     array.remove(entity)
+                    if isinstance(entity, Bot):
+                        self.recently_dead_bots.append(entity)
                 else:
                     # Make sure the entity wraps around the boundaries
                     if self.boundary_sizes:
@@ -120,9 +126,13 @@ class World:
         x_diff, y_diff = target_point[0] - start_point[0], target_point[1] - start_point[1]
         if self.boundary_sizes:
             if x_diff > self.half_boundaries[0]:
-                x_diff = -x_diff
+                x_diff = (x_diff - self.boundary_sizes[0])
+            elif x_diff < -self.half_boundaries[0]:
+                x_diff = (x_diff + self.boundary_sizes[0])
             if y_diff > self.half_boundaries[1]:
-                y_diff = -y_diff
+                y_diff = (y_diff - self.boundary_sizes[1])
+            elif y_diff < -self.half_boundaries[1]:
+                y_diff = (y_diff + self.boundary_sizes[1])
         distance = math.sqrt((x_diff**2) + (y_diff**2))
         if distance > 0:
             x_diff /= distance
@@ -186,21 +196,44 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
     print("Running %s ticks with bots added..." % additional_ticks)
     run(additional_ticks, with_bots=True)
     if sim_data:
-        sim_data.graph_results()
+        sim_data.save_metrics()
 
 
 class SimulationData:
     # TODO: Have SimulationData keep track of a best bot for some criteria
     def __init__(self, world):
+        self.start_time = time.time()
         self.world = world
         self.plant_numbers = []
         self.bot_numbers = []
         self.signal_numbers = []
+        # Create a dummy 'best bot' for now
+        self.best_bot = Bot(0, 0, 0, name='Dummy_Bot')
+        self.best_bot.birthday = 0
+        self.directory = os.getcwd() + os.sep + 'metrics'
+        # Create the metrics directory if it does not exist.
+        if not os.path.exists(self.directory):
+            print("Making metrics directory...")
+            os.makedirs(self.directory)
 
     def poll_world_for_data(self):
         for data_list, world_list in ((self.plant_numbers, self.world.plants), (self.bot_numbers, self.world.bots),
                                       (self.signal_numbers, self.world.signals)):
             data_list.append(len(world_list))
+        for bot in self.world.recently_dead_bots:
+            # Compare the recently deceased bot to the current best and return the better
+            self.keep_better_bot(self.best_bot, bot)
+
+    def keep_better_bot(self, first_bot, second_bot):
+        if first_bot.age > second_bot.age:
+            self.best_bot = first_bot
+        else:
+            self.best_bot = second_bot
+
+    def save_metrics(self):
+        self.graph_results()
+        self.save_champion_bot_data()
+        print("Elapsed seconds:", round(time.time() - self.start_time, 2), "seconds.")
 
     def graph_results(self):
         print("Creating Graph...")
@@ -253,11 +286,38 @@ class SimulationData:
             subplot.tick_params(labelsize=axes_tick_font_size)
             subplot.set_title(title, size=sub_graph_title_size)
         print("Saving Graph...")
-        graph.savefig(os.getcwd() + os.sep + 'graphs' + os.sep + 'simulation.png', dpi=115, bbox_inches='tight')
+        graph.savefig(self.directory + os.sep + 'simulation.png', dpi=115, bbox_inches='tight')
+
+    def save_champion_bot_data(self):
+        # First find if any of the still alive bots are better
+        for bot in self.world.bots:
+            self.keep_better_bot(self.best_bot, bot)
+        best = self.best_bot
+        print("Updating Hall of Champions...")
+        with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
+            fieldnames = ('name', 'birthday', 'age', 'energy', 'children', 'world_ticks', 'world_width', 'world_height',
+                          'bot_limit', 'plant_limit', 'energy_pool', 'YYYY-MM-DD', 'seconds_run')
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            # If the file is empty, or brand new, write the header
+            if csv_file.readline(1) == '':
+                csv_file.seek(0)
+                writer.writeheader()
+            # Collect the values for the new row and write it to the CSV
+            if self.world.boundary_sizes:
+                world_width, world_height = self.world.boundary_sizes
+            else:
+                world_width, world_height = '-1', '-1'
+            bot_limit = '-1' if self.world.bot_limit is None else self.world.bot_limit
+            plant_limit = '-1' if self.world.plant_limit is None else self.world.plant_limit
+            energy_pool = '-1' if self.world.initialized_energy is None else self.world.initialized_energy
+            values = (best.name, best.birthday, best.age, best.energy, best.number_children, self.world.tick_number,
+                      world_width, world_height, bot_limit, plant_limit, energy_pool,
+                      time.strftime('%Y-%m-%d'), round(time.time() - self.start_time, 2))
+            writer.writerow(dict(zip(fieldnames, values)))
 
 
 class GraphicalSimulation:
-    def __init__(self, world, plant_ticks, collect_data=True):
+    def __init__(self, world, plant_ticks, collect_data=True, fps=20):
         # Set an environment variable to center the pygame screen
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
@@ -315,25 +375,23 @@ class GraphicalSimulation:
             screen.unlock()
             tick += 1
             pygame.display.update()
-            self.clock.tick(15)
+            self.clock.tick(fps)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
                 running = False
         print("World ran for %s ticks" % self.world.tick_number)
         if sim_data:
-            sim_data.graph_results()
+            sim_data.save_metrics()
         pygame.quit()
 
 
-def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True):
+def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True, fps=20):
     if graphics:
-        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data)
+        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data, fps=fps)
     else:
         no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=collect_data)
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    start_time = time.time()
     earth = World(boundary_sizes=(200, 200), energy_pool=100000)
-    run_simulation(earth, 500, 5000, graphics=True)
-    print("Elapsed seconds:", round(time.time() - start_time, 2), "seconds.")
+    run_simulation(earth, 500, 5000, graphics=True, fps=60)

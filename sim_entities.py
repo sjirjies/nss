@@ -13,6 +13,7 @@ class BaseSimulationEntity:
         self.dead = False
         self.birthday = None
         self.age = 0
+        self.number_children = 0
 
     def step(self):
         self.age += 1
@@ -20,7 +21,7 @@ class BaseSimulationEntity:
         if self.energy < 1:
             self.dead = True
 
-    def __repr__(self):
+    def __str__(self):
         return self.name
 
 
@@ -65,6 +66,7 @@ class Bot(BaseSimulationEntity):
                     behavior_tree=bot.behavior_tree.return_tree_copy())
         child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
+        bot.number_children += 1
         # print("%s spawned %s" % (str(bot), str(child)))
         bot.world.add_entity(child)
 
@@ -170,6 +172,7 @@ class Plant(BaseSimulationEntity):
                 # Create a baby plant and give it energy from the parent
                 baby_plant = Plant(child_x, child_y, 0)
                 self.world.transfer_energy_between_entities(self.child_investment, donor=self, recipient=baby_plant)
+                self.number_children += 1
                 self.world.add_entity(baby_plant)
 
 
@@ -200,7 +203,7 @@ class Signal(BaseSimulationEntity):
                     self.detected_objects.append(entity)
         super().step()
 
-    def __repr__(self):
+    def __str__(self):
         return self.name
 
 
