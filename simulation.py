@@ -17,6 +17,10 @@ class World:
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
+        if self.boundary_sizes:
+            self.half_boundaries = self.boundary_sizes[0]//2, self.boundary_sizes[1]//2
+        else:
+            self.half_boundaries = None
         self.energy_pool = energy_pool
         self.kd_tree = None
         self.all_entities = []
@@ -112,6 +116,19 @@ class World:
         donor.energy -= energy_to_transfer
         recipient.energy += energy_to_transfer
 
+    def get_unit_vector_to_point(self, start_point, target_point):
+        x_diff, y_diff = target_point[0] - start_point[0], target_point[1] - start_point[1]
+        if self.boundary_sizes:
+            if x_diff > self.half_boundaries[0]:
+                x_diff = -x_diff
+            if y_diff > self.half_boundaries[1]:
+                y_diff = -y_diff
+        distance = math.sqrt((x_diff**2) + (y_diff**2))
+        if distance > 0:
+            x_diff /= distance
+            y_diff /= distance
+        return x_diff, y_diff
+
 
 def create_basic_intelligence():
     check_reproduce_node = ConditionalNode(Bot.can_i_reproduce)
@@ -134,7 +151,7 @@ def create_basic_intelligence():
     check_at_target_node.assign_edges(eat_node, move_to_target_node)
     eat_node.assign_edge(check_reproduce_node)
 
-    behavior = BehaviorTree()
+    behavior = BehaviorGraph()
     behavior.behavior_nodes = [launch_signal_node, check_reproduce_node, create_clone_node,
                                check_signal_found_food_node, wait_node,move_to_target_node, check_at_target_node,
                                eat_node, check_active_signal_node]
@@ -173,6 +190,7 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
 
 
 class SimulationData:
+    # TODO: Have SimulationData keep track of a best bot for some criteria
     def __init__(self, world):
         self.world = world
         self.plant_numbers = []
@@ -246,7 +264,8 @@ class GraphicalSimulation:
         screen_width, screen_height = 500, 500
         if world.boundary_sizes:
             screen_width, screen_height = world.boundary_sizes
-        screen = pygame.display.set_mode((screen_width, screen_height))
+        screen = pygame.display.set_mode((screen_width, screen_height), pygame.DOUBLEBUF)
+        pygame.display.set_caption('NSS')
         self.clock = pygame.time.Clock()
         running = 1
         tick = 0
@@ -271,7 +290,6 @@ class GraphicalSimulation:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = 0
             screen.fill((0, 0, 0))
-            pygame.display.flip()
             # Update the world
             self.world.step()
             # Collect Data if enabled
@@ -281,11 +299,8 @@ class GraphicalSimulation:
             pixels = pygame.surfarray.pixels3d(screen)
             for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
                 for entity in entity_list:
-                    # Offset the origin to half the screen dimensions
-                    x = entity.x
-                    y = entity.y
-                    if 0 <= x <= screen_width and 0 <= y <= screen_height:
-                        pixels[x][y] = color
+                    if 0 <= entity.x <= screen_width and 0 <= entity.y <= screen_height:
+                        pixels[entity.x][entity.y] = color
                     # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
             del pixels
             screen.lock()
@@ -300,10 +315,11 @@ class GraphicalSimulation:
             screen.unlock()
             tick += 1
             pygame.display.update()
-            self.clock.tick(20)
+            self.clock.tick(15)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
                 running = False
+        print("World ran for %s ticks" % self.world.tick_number)
         if sim_data:
             sim_data.graph_results()
         pygame.quit()
@@ -319,5 +335,5 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
     earth = World(boundary_sizes=(200, 200), energy_pool=100000)
-    run_simulation(earth, 500, 5000, graphics=False)
-    print("Elapsed seconds:", time.time() - start_time)
+    run_simulation(earth, 500, 5000, graphics=True)
+    print("Elapsed seconds:", round(time.time() - start_time, 2), "seconds.")

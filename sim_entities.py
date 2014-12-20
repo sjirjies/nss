@@ -42,7 +42,7 @@ class Bot(BaseSimulationEntity):
 
     def step(self):
         if self.behavior_tree is None:
-            raise ValueError("Behavior Tree for bot %s must be BehaviorTree object, not None." % self)
+            raise ValueError("Behavior Tree for bot %s must be BehaviorGraph object, not None." % self)
         if self.signal and self.signal.dead:
             self.signal = None
         self.behavior_tree.step(self)
@@ -101,12 +101,9 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def move_towards_target(bot):
-        if bot.target_point:
-            x, y = bot.target_point[0] - bot.x, bot.target_point[1] - bot.y
-            distance = math.sqrt((x**2) + (y**2))
-            if distance > 0:
-                bot.x += x/distance * bot.speed
-                bot.y += y/distance * bot.speed
+        unit_vector = bot.world.get_unit_vector_to_point((bot.x, bot.y), (bot.target_point[0], bot.target_point[1]))
+        bot.x += unit_vector[0] * bot.speed
+        bot.y += unit_vector[1] * bot.speed
 
     @staticmethod
     @conditional
@@ -207,6 +204,7 @@ class Signal(BaseSimulationEntity):
         return self.name
 
 
+# TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properies.
 class StaticSignal(Signal):
     def __init__(self, x, y, energy, owner, name=None):
         super().__init__(x, y, energy, owner, name)

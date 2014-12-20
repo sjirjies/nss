@@ -75,7 +75,7 @@ class ConditionalNode(BaseBehaviorNode):
         return self.false_node
 
 
-class BehaviorTree:
+class BehaviorGraph:
     def __init__(self):
         self.behavior_nodes = []
         self.current_behavior_node = None
@@ -88,7 +88,9 @@ class BehaviorTree:
     def return_tree_copy(self):
         return copy.deepcopy(self)
 
-    def generate_random_tree(self):
+    def generate_random_graph(self):
+        # TODO: Finish creating random graphs
         pass
+    # TODO: add methods for mutating the graph using the NodeRegister
 
 
