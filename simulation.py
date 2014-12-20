@@ -7,8 +7,6 @@ from scipy.spatial import cKDTree
 
 from sim_entities import *
 
-import line_profiler
-
 
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
@@ -302,7 +300,7 @@ class GraphicalSimulation:
             screen.unlock()
             tick += 1
             pygame.display.update()
-            self.clock.tick(15)
+            self.clock.tick(20)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
                 running = False
@@ -320,6 +318,6 @@ def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, 
 if __name__ == '__main__':
     print("Starting Simulation...")
     start_time = time.time()
-    earth = World(plant_limit=500, boundary_sizes=(200, 200))
-    run_simulation(earth, 500, 700, graphics=True)
+    earth = World(boundary_sizes=(200, 200), energy_pool=100000)
+    run_simulation(earth, 500, 5000, graphics=False)
     print("Elapsed seconds:", time.time() - start_time)

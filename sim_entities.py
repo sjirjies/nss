@@ -32,7 +32,6 @@ class Bot(BaseSimulationEntity):
         self.behavior_tree = behavior_tree
         self.speed = 1
         self.child_investment = 200
-        self.max_energy = 400
         self.target_point = None
         self.signal = None
         Bot.counter += 1
@@ -120,18 +119,17 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def eat_nearby_food(bot):
-        if bot.energy < bot.max_energy:
-            if bot.signal:
-                bot.signal.dead = True
-            bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
-            bot.world.transfer_energy_between_entities(3, donor=bot, recipient=bot.signal)
-            bot.signal.step()
-            if bot.signal.detected_objects:
-                for entity in bot.signal.detected_objects:
-                    if isinstance(entity, Plant):
-                        bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
-                        # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
-                        # print(message)
+        if bot.signal:
+            bot.signal.dead = True
+        bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
+        bot.world.transfer_energy_between_entities(3, donor=bot, recipient=bot.signal)
+        bot.signal.step()
+        if bot.signal.detected_objects:
+            for entity in bot.signal.detected_objects:
+                if isinstance(entity, Plant):
+                    bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
+                    # message = "Transferring " + str(energy) + " energy to " + str(bot) + " from " + str(food)
+                    # print(message)
 
 
 class Plant(BaseSimulationEntity):
@@ -197,13 +195,12 @@ class Signal(BaseSimulationEntity):
     def step(self):
         self.detected_objects = []
         if self.world.kd_tree:
-            distances, indexes = self.world.kd_tree.query(np.array(
-                (self.x, self.y)), k=3, distance_upper_bound=self.diameter//2)
-            for distance_index, distance in enumerate(distances):
-                if distance != np.inf:
-                    entity = self.world.all_entities[indexes[distance_index]]
-                    if entity not in self.detected_objects:
-                        self.detected_objects.append(entity)
+            # Note: KDTree lookup always returns the signal object as the closest point
+            indexes = self.world.kd_tree.query_ball_point((np.array((self.x, self.y))), r=self.diameter//2)
+            for index in indexes:
+                entity = self.world.all_entities[index]
+                if entity not in self.detected_objects:
+                    self.detected_objects.append(entity)
         super().step()
 
     def __repr__(self):
