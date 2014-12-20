@@ -293,6 +293,7 @@ class SimulationData:
         for bot in self.world.bots:
             self.keep_better_bot(self.best_bot, bot)
         best = self.best_bot
+        today = time.strftime('%Y-%m-%d')
         print("Updating Hall of Champions...")
         with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
             fieldnames = ('name', 'birthday', 'age', 'energy', 'children', 'world_ticks', 'world_width', 'world_height',
@@ -312,8 +313,14 @@ class SimulationData:
             energy_pool = '-1' if self.world.initialized_energy is None else self.world.initialized_energy
             values = (best.name, best.birthday, best.age, best.energy, best.number_children, self.world.tick_number,
                       world_width, world_height, bot_limit, plant_limit, energy_pool,
-                      time.strftime('%Y-%m-%d'), round(time.time() - self.start_time, 2))
+                      today, round(time.time() - self.start_time, 2))
             writer.writerow(dict(zip(fieldnames, values)))
+        print("Updating Champions Intelligence Text...")
+        string = str(best) + ' on ' + today + '\n'
+        for node in best.behavior_tree.behavior_nodes:
+            string += '\t' + str(node) + '\n'
+        with open(self.directory + os.sep + 'champions_intelligence.txt', 'a+') as text_file:
+            text_file.write(string)
 
 
 class GraphicalSimulation:
