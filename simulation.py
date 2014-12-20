@@ -282,7 +282,7 @@ class SimulationData:
         entity_nums.set_ylabel('Number of Plants', size=axes_text_size)
         for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'), (self.bot_numbers, 'Bots', 'm'),
                                          (self.signal_numbers, 'Signals', 'b')):
-            entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color)
+            entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color, linewidth=0.25)
         entity_nums.legend(loc='upper left', labelspacing=0, borderpad=0, fontsize=legend_font_size)
         entity_nums.set_xlim((0, self.world.tick_number))
 
@@ -369,7 +369,7 @@ class GraphicalSimulation:
             pixels = pygame.surfarray.pixels3d(screen)
             for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
                 for entity in entity_list:
-                    if 0 <= entity.x <= screen_width and 0 <= entity.y <= screen_height:
+                    if 0 <= entity.x < screen_width and 0 <= entity.y < screen_height:
                         pixels[entity.x][entity.y] = color
                     # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
             del pixels

@@ -33,7 +33,7 @@ class Bot(BaseSimulationEntity):
         self.behavior_tree = behavior_tree
         self.speed = 1
         self.child_investment = 200
-        self.target_point = None
+        self.target_point = x_start, y_start
         self.signal = None
         Bot.counter += 1
         if name is None:
@@ -62,8 +62,14 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def create_clone(bot):
+        child_behavior = bot.behavior_tree.return_tree_copy()
+        # If is the second or greater child, then possible mutate the behavior
+        if bot.number_children >= 2:
+            if np.random.random_integers(0, 1):
+                child_behavior.mutate_behavior()
         child = Bot(bot.x + np.random.random_integers(-3, 3), bot.y + np.random.random_integers(-3, 3), 0,
-                    behavior_tree=bot.behavior_tree.return_tree_copy())
+                    behavior_tree=child_behavior)
+        # For now just start at the first node. Setting it to a random one could be interesting as well.
         child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
         bot.number_children += 1
@@ -103,9 +109,10 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def move_towards_target(bot):
-        unit_vector = bot.world.get_unit_vector_to_point((bot.x, bot.y), (bot.target_point[0], bot.target_point[1]))
-        bot.x += unit_vector[0] * bot.speed
-        bot.y += unit_vector[1] * bot.speed
+        if bot.target_point:
+            unit_vector = bot.world.get_unit_vector_to_point((bot.x, bot.y), (bot.target_point[0], bot.target_point[1]))
+            bot.x += unit_vector[0] * bot.speed
+            bot.y += unit_vector[1] * bot.speed
 
     @staticmethod
     @conditional
