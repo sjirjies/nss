@@ -3,6 +3,7 @@ import functools
 from random import random, choice
 import numpy as np
 
+
 class NodeRegister:
     # statement and conditional are just used to ID functions
     statement = 1
@@ -128,8 +129,8 @@ class BehaviorGraph:
             self._mutate_shuffle_outgoing_edge()
         elif mutation_type == 2:
             self._mutate_inject_node()
-        else:
-            self._mutate_remove_node()
+        # else:
+        #     self._mutate_remove_node()
 
     def _mutate_replace_function(self):
         node = choice(self.behavior_nodes)

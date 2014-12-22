@@ -7,6 +7,7 @@ import pygame
 from scipy.spatial import cKDTree
 
 from sim_entities import *
+import extra_nodes
 
 
 class World:
@@ -200,7 +201,6 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
 
 
 class SimulationData:
-    # TODO: Have SimulationData keep track of a best bot for some criteria
     def __init__(self, world):
         self.start_time = time.time()
         self.world = world
@@ -218,8 +218,9 @@ class SimulationData:
             print("Making metrics directory...")
             os.makedirs(self.directory)
         # Create the champions csv if it does not exist and write the header to it
-        self.fieldnames = ('name', 'birthday', 'age', 'energy', 'children', 'world_ticks', 'world_width',
-                           'world_height', 'bot_limit', 'plant_limit', 'energy_pool', 'YYYY-MM-DD', 'seconds_run')
+        self.fieldnames = ('name', 'birthday', 'age', 'end_energy', 'peak_energy', 'children', 'world_ticks',
+                           'world_width', 'world_height', 'bot_limit', 'plant_limit', 'energy_pool', 'seconds_run',
+                           'YYYY-MM-DD', 'day_time')
         if not os.path.isfile(self.hall_champions_file_path):
             print("Creating Hall of Champions record...")
             with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
@@ -235,7 +236,7 @@ class SimulationData:
             self.keep_better_bot(self.best_bot, bot)
 
     def keep_better_bot(self, first_bot, second_bot):
-        if first_bot.age > second_bot.age:
+        if first_bot.peak_energy > second_bot.peak_energy:
             self.best_bot = first_bot
         else:
             self.best_bot = second_bot
@@ -282,7 +283,7 @@ class SimulationData:
         entity_nums.set_ylabel('Number of Plants', size=axes_text_size)
         for entity_list, name, color in ((self.plant_numbers, 'Plants', 'g'), (self.bot_numbers, 'Bots', 'm'),
                                          (self.signal_numbers, 'Signals', 'b')):
-            entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color, linewidth=0.25)
+            entity_nums.plot(range(0, len(entity_list)), entity_list, label=name, c=color, linewidth=0.35)
         entity_nums.legend(loc='upper left', labelspacing=0, borderpad=0, fontsize=legend_font_size)
         entity_nums.set_xlim((0, self.world.tick_number))
 
@@ -303,6 +304,7 @@ class SimulationData:
             self.keep_better_bot(self.best_bot, bot)
         best = self.best_bot
         today = time.strftime('%Y-%m-%d')
+        hour_min = time.strftime('%H:%M')
         print("Updating Hall of Champions...")
         with open(self.directory + os.sep + 'hall_of_champions.csv', 'a+') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
@@ -314,12 +316,13 @@ class SimulationData:
             bot_limit = '-1' if self.world.bot_limit is None else self.world.bot_limit
             plant_limit = '-1' if self.world.plant_limit is None else self.world.plant_limit
             energy_pool = '-1' if self.world.initialized_energy is None else self.world.initialized_energy
-            values = (best.name, best.birthday, best.age, best.energy, best.number_children, self.world.tick_number,
-                      world_width, world_height, bot_limit, plant_limit, energy_pool,
-                      today, round(time.time() - self.start_time, 1))
+            values = (best.name, best.birthday, best.age, best.energy, best.peak_energy, best.number_children,
+                      self.world.tick_number, world_width, world_height, bot_limit, plant_limit, energy_pool,
+                      round(time.time() - self.start_time, 1), today, hour_min)
             writer.writerow(dict(zip(self.fieldnames, values)))
+        # TODO: Replace the text output with a visual graph using something like NetworkX http://networkx.github.io/
         print("Updating Champions Intelligence Text...")
-        string = str(best) + ' on ' + today + '\n'
+        string = str(best) + ' on ' + today + ' ' + hour_min + '\n'
         for node in best.behavior_tree.behavior_nodes:
             string += '\t' + str(node) + '\n'
         with open(self.directory + os.sep + 'champions_intelligence.txt', 'a+') as text_file:
@@ -403,5 +406,5 @@ def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, 
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(200, 200), energy_pool=100000)
+    earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     run_simulation(earth, 500, 5000, graphics=True, fps=60)

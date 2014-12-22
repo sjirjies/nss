@@ -1,4 +1,4 @@
-Bot_53 on 2014-12-20
+Bot_2379 on 2014-12-21 01:12
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -8,7 +8,7 @@ Bot_53 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_4 on 2014-12-20
+Bot_152 on 2014-12-21 01:12
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -18,7 +18,7 @@ Bot_4 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_2 on 2014-12-20
+Bot_3110 on 2014-12-21 01:13
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -28,7 +28,7 @@ Bot_2 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_877 on 2014-12-20
+Bot_1039 on 2014-12-21 01:16
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -38,7 +38,7 @@ Bot_877 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_3817 on 2014-12-20
+Bot_589 on 2014-12-21 01:16
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -48,7 +48,7 @@ Bot_3817 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_73 on 2014-12-20
+Bot_5521 on 2014-12-21 01:18
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -58,7 +58,7 @@ Bot_73 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_6776 on 2014-12-20
+Bot_5628 on 2014-12-21 01:51
 	3_launch_signal -> 5_has_signal_found_food
 	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
@@ -66,11 +66,11 @@ Bot_6776 on 2014-12-20
 	6_wait -> 4_do_i_have_a_signal
 	7_move_towards_target -> 8_am_i_near_target
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
-	9_eat_nearby_food -> 6_wait
+	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_6 on 2014-12-20
+Bot_1533 on 2014-12-21 01:59
 	3_launch_signal -> 5_has_signal_found_food
-	1_can_i_reproduce ? 3_launch_signal : 3_launch_signal
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
 	5_has_signal_found_food ? 7_move_towards_target : 6_wait
 	6_wait -> 4_do_i_have_a_signal
@@ -78,9 +78,9 @@ Bot_6 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-Bot_134 on 2014-12-20
+Bot_7 on 2014-12-21 01:59
 	3_launch_signal -> 5_has_signal_found_food
-	1_can_i_reproduce ? 10_can_i_reproduce : 3_launch_signal
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
 	2_create_clone -> 1_can_i_reproduce
 	5_has_signal_found_food ? 7_move_towards_target : 6_wait
 	6_wait -> 4_do_i_have_a_signal
@@ -88,4 +88,85 @@ Bot_134 on 2014-12-20
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
-	10_can_i_reproduce ? 5_has_signal_found_food : 2_create_clone
+Bot_2328 on 2014-12-21 02:00
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
+	2_create_clone -> 10_am_i_near_target
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+	10_am_i_near_target ? 5_has_signal_found_food : 1_can_i_reproduce
+Bot_31483 on 2014-12-21 02:07
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 6_wait : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_6373 on 2014-12-21 02:20
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 6_wait : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_1092 on 2014-12-22 01:17
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_1862 on 2014-12-22 01:19
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
+	2_create_clone -> 10_has_signal_detected_bots
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+	10_has_signal_detected_bots ? 1_can_i_reproduce : 2_create_clone
+Bot_947 on 2014-12-22 01:19
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_24457 on 2014-12-22 01:25
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 4_do_i_have_a_signal : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_24580 on 2014-12-22 01:57
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 5_has_signal_found_food : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
