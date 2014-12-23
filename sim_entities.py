@@ -33,6 +33,8 @@ class Bot(BaseSimulationEntity):
         self.behavior_tree = behavior_tree
         self.speed = 1
         self.child_investment = 200
+        self.max_age = 2000
+        self.peak_energy = energy
         self.target_point = x_start, y_start
         self.signal = None
         Bot.counter += 1
@@ -51,6 +53,10 @@ class Bot(BaseSimulationEntity):
         if self.signal and self.signal not in self.world.signals:
             self.world.add_entity(self.signal)
         super().step()
+        if self.age >= self.max_age:
+            self.dead = True
+        if self.energy > self.peak_energy:
+            self.peak_energy = self.energy
 
     @staticmethod
     @conditional
@@ -65,7 +71,7 @@ class Bot(BaseSimulationEntity):
         child_behavior = bot.behavior_tree.return_tree_copy()
         # If is the second or greater child, then possible mutate the behavior
         if bot.number_children >= 2:
-            if np.random.random_integers(0, 1):
+            if np.random.random_integers(1, 100) < 75:
                 child_behavior.mutate_behavior()
         child = Bot(bot.x + np.random.random_integers(-3, 3), bot.y + np.random.random_integers(-3, 3), 0,
                     behavior_tree=child_behavior)
@@ -79,6 +85,7 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def launch_signal(bot):
+        # TODO: Make signal creation not require passing 0 and setting energy with a World method
         bot.signal = MobileSignal(bot.x, bot.y, np.random.ranf()*2*math.pi, 0, bot)
         bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
 
