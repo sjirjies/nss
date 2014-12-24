@@ -38,7 +38,6 @@ def kill_and_eat_nearby_bots(bot):
         for entity in bot.signal.detected_objects:
             if isinstance(entity, Bot) and entity is not bot:
                 bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
-                print("%s has eaten %s" % (bot, entity))
 
 
 @conditional

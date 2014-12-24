@@ -45,7 +45,7 @@ class Bot(BaseSimulationEntity):
 
     def step(self):
         if self.behavior_tree is None:
-            raise ValueError("Behavior Tree for bot %s must be BehaviorGraph object, not None." % self)
+            raise ValueError("Behavior Tree for %s must be BehaviorGraph object, not None." % self)
         if self.signal and self.signal.dead:
             self.signal = None
         self.behavior_tree.step(self)

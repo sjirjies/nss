@@ -170,3 +170,66 @@ Bot_24580 on 2014-12-22 01:57
 	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
 	9_eat_nearby_food -> 1_can_i_reproduce
 	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_68823 on 2014-12-22 21:56
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 14_kill_and_eat_nearby_bots
+	2_create_clone -> 3_launch_signal
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 141_can_i_reproduce : 3_launch_signal
+	14_kill_and_eat_nearby_bots -> 3_launch_signal
+	141_can_i_reproduce ? 5_has_signal_found_food : 5_has_signal_found_food
+Bot_1129124 on 2014-12-22 23:25
+	3_eat_nearby_food -> 5554_kill_and_eat_nearby_bots
+	1_do_i_have_a_signal ? 2_create_clone : 8342_am_i_near_target
+	2_create_clone -> 1_do_i_have_a_signal
+	5_am_i_near_target ? 1334_launch_signal : 6_wait
+	6_wait -> 48_do_i_have_a_signal
+	7_move_towards_target -> 7349_set_random_target
+	8_am_i_near_target ? 5487_am_i_near_target : 7_move_towards_target
+	9_eat_nearby_food -> 10705_has_signal_detected_bots
+	4_do_i_have_a_signal ? 1264_move_towards_target : 3_eat_nearby_food
+	48_do_i_have_a_signal ? 8_am_i_near_target : 4120_create_clone
+	1264_move_towards_target -> 48_do_i_have_a_signal
+	1334_launch_signal -> 1264_move_towards_target
+	1364_create_local_signal -> 8_am_i_near_target
+	1461_create_clone -> 5554_kill_and_eat_nearby_bots
+	4120_create_clone -> 1461_create_clone
+	5487_am_i_near_target ? 1461_create_clone : 7349_set_random_target
+	5554_kill_and_eat_nearby_bots -> 5554_kill_and_eat_nearby_bots
+	7349_set_random_target -> 8196_set_random_target
+	8196_set_random_target -> 1334_launch_signal
+	8342_am_i_near_target ? 3_eat_nearby_food : 1334_launch_signal
+	10705_has_signal_detected_bots ? 8342_am_i_near_target : 5_am_i_near_target
+Bot_1430 on 2014-12-23 15:47
+	3_launch_signal -> 5_has_signal_found_food
+	1_can_i_reproduce ? 2_create_clone : 3_launch_signal
+	2_create_clone -> 1_can_i_reproduce
+	5_has_signal_found_food ? 7_move_towards_target : 6_wait
+	6_wait -> 4_do_i_have_a_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 9_eat_nearby_food : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_launch_signal
+Bot_987340 on 2014-12-23 17:19
+	3_kill_and_eat_nearby_bots -> 6006_kill_and_eat_nearby_bots
+	1_can_i_reproduce ? 1097_wait : 1006_kill_and_eat_nearby_bots
+	2_create_clone -> 1097_wait
+	5_has_signal_found_food ? 7_move_towards_target : 499_has_signal_detected_other_signal
+	6_wait -> 499_has_signal_detected_other_signal
+	7_move_towards_target -> 8_am_i_near_target
+	8_am_i_near_target ? 1830_kill_and_eat_nearby_bots : 7_move_towards_target
+	9_eat_nearby_food -> 1_can_i_reproduce
+	4_do_i_have_a_signal ? 5_has_signal_found_food : 3_kill_and_eat_nearby_bots
+	499_has_signal_detected_other_signal ? 4817_move_towards_target : 2_create_clone
+	1006_kill_and_eat_nearby_bots -> 2_create_clone
+	1045_am_i_near_target ? 4_do_i_have_a_signal : 1_can_i_reproduce
+	1097_wait -> 2_create_clone
+	1830_kill_and_eat_nearby_bots -> 3_kill_and_eat_nearby_bots
+	4055_create_clone -> 5_has_signal_found_food
+	4817_move_towards_target -> 7_move_towards_target
+	5650_kill_and_eat_nearby_bots -> 1830_kill_and_eat_nearby_bots
+	6006_kill_and_eat_nearby_bots -> 5650_kill_and_eat_nearby_bots

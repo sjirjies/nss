@@ -19,10 +19,9 @@ class World:
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
+        self.half_boundaries = None
         if self.boundary_sizes:
             self.half_boundaries = self.boundary_sizes[0]/2, self.boundary_sizes[1]/2
-        else:
-            self.half_boundaries = None
         self.energy_pool = energy_pool
         self.initialized_energy = self.energy_pool
         self.kd_tree = None
@@ -265,9 +264,10 @@ class SimulationData:
         entity_dist.scatter([bot.x for bot in self.world.bots], [bot.y for bot in self.world.bots],
                             s=3, lw=0, label='Bots', c='m')
         entity_dist.legend(loc='upper left', labelspacing=0, borderpad=0, fontsize=legend_font_size)
-        x_limits = 0, self.world.boundary_sizes[0]
-        y_limits = 0, self.world.boundary_sizes[1]
         if self.world.boundary_sizes:
+            x_limits = 0, self.world.boundary_sizes[0]
+            y_limits = 0, self.world.boundary_sizes[1]
+        else:
             # Since the world has no bounds, find the spatial span of the entities
             x_points = [point.x for point in self.world.all_entities]
             y_points = [point.y for point in self.world.all_entities]
@@ -330,21 +330,28 @@ class SimulationData:
 
 
 class GraphicalSimulation:
-    def __init__(self, world, plant_ticks, collect_data=True, fps=20):
+    def __init__(self, world, plant_ticks, collect_data=True, fps=20, scale=2):
         # Set an environment variable to center the pygame screen
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
-        screen_width, screen_height = 500, 500
-        if world.boundary_sizes:
-            screen_width, screen_height = world.boundary_sizes
-        screen = pygame.display.set_mode((screen_width, screen_height), pygame.DOUBLEBUF)
-        pygame.display.set_caption('NSS')
         self.clock = pygame.time.Clock()
+        self.world = world
+        if world.boundary_sizes:
+            window_width, window_height = world.boundary_sizes
+        else:
+            window_width, window_height = 250, 250
+        screen = pygame.Surface((window_width, window_height))
+        screen_width, screen_height = screen.get_width(), screen.get_height()
+        window_width, window_height = scale * window_width, scale * window_height
+        window = pygame.display.set_mode((window_width, window_height), pygame.DOUBLEBUF)
+        pygame.display.set_caption('NSS')
         running = 1
         tick = 0
-        self.world = world
         # Run the simulation to get plants spread out
-        self.world.add_entity(Plant(screen_width/2, screen_height/2, 5))
+        if self.world.boundary_sizes:
+            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1], 5))
+        else:
+            self.world.add_entity(Plant(screen_width//2, screen_height//2, 5))
         if collect_data:
             sim_data = SimulationData(self.world)
         else:
@@ -355,7 +362,10 @@ class GraphicalSimulation:
                 sim_data.poll_world_for_data()
         # Add a bot and display the simulation
         behavior = create_basic_intelligence()
-        self.world.add_entity(Bot(screen_width/2, screen_height/2, 250, behavior))
+        if self.world.boundary_sizes:
+            self.world.add_entity(Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], 250, behavior))
+        else:
+            self.world.add_entity(Bot(screen_width//2, screen_height//2, 250, behavior))
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -386,6 +396,10 @@ class GraphicalSimulation:
                     signal_color = (100, 130, 250)
                 pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
             screen.unlock()
+            if scale > 1:
+                pygame.transform.scale(screen, (window_width, window_height), window)
+            else:
+                window.blit(screen, (0, 0))
             tick += 1
             pygame.display.update()
             self.clock.tick(fps)
@@ -398,13 +412,13 @@ class GraphicalSimulation:
         pygame.quit()
 
 
-def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True, fps=20):
+def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True, fps=20, scale=2):
     if graphics:
-        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data, fps=fps)
+        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data, fps=fps, scale=scale)
     else:
         no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=collect_data)
 
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
-    run_simulation(earth, 500, 5000, graphics=True, fps=60)
+    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=3)
