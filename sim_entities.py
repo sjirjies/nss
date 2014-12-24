@@ -28,9 +28,9 @@ class BaseSimulationEntity:
 class Bot(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x_start, y_start, energy, behavior_tree=None, name=None):
+    def __init__(self, x_start, y_start, energy, behavior_graph=None, name=None):
         super().__init__(x_start, y_start, energy)
-        self.behavior_tree = behavior_tree
+        self.behavior = behavior_graph
         self.speed = 1
         self.child_investment = 200
         self.max_age = 2000
@@ -44,11 +44,11 @@ class Bot(BaseSimulationEntity):
             self.name = name
 
     def step(self):
-        if self.behavior_tree is None:
+        if self.behavior is None:
             raise ValueError("Behavior Tree for %s must be BehaviorGraph object, not None." % self)
         if self.signal and self.signal.dead:
             self.signal = None
-        self.behavior_tree.step(self)
+        self.behavior.step(self)
         # Check if the bot has created a new signal
         if self.signal and self.signal not in self.world.signals:
             self.world.add_entity(self.signal)
@@ -60,7 +60,7 @@ class Bot(BaseSimulationEntity):
 
     @staticmethod
     @conditional
-    def can_i_reproduce(bot):
+    def reproduce_possible(bot):
         if bot.energy > bot.child_investment:
             return True
         return False
@@ -68,15 +68,15 @@ class Bot(BaseSimulationEntity):
     @staticmethod
     @statement
     def create_clone(bot):
-        child_behavior = bot.behavior_tree.return_tree_copy()
+        child_behavior = bot.behavior.return_tree_copy()
         # If is the second or greater child, then possible mutate the behavior
         if bot.number_children >= 2:
             if np.random.random_integers(1, 100) < 75:
                 child_behavior.mutate_behavior()
         child = Bot(bot.x + np.random.random_integers(-3, 3), bot.y + np.random.random_integers(-3, 3), 0,
-                    behavior_tree=child_behavior)
+                    behavior_graph=child_behavior)
         # For now just start at the first node. Setting it to a random one could be interesting as well.
-        child.behavior_tree.current_behavior_node = child.behavior_tree.behavior_nodes[0]
+        child.behavior.current_behavior_node = child.behavior.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
         bot.number_children += 1
         # print("%s spawned %s" % (str(bot), str(child)))
@@ -91,7 +91,7 @@ class Bot(BaseSimulationEntity):
 
     @staticmethod
     @conditional
-    def do_i_have_a_signal(bot):
+    def signal_exists(bot):
         if bot.signal:
             return True
         return False
@@ -123,7 +123,7 @@ class Bot(BaseSimulationEntity):
 
     @staticmethod
     @conditional
-    def am_i_near_target(bot):
+    def target_nearby(bot):
         if bot.target_point:
             if math.sqrt(((bot.target_point[0] - bot.x)**2) + ((bot.target_point[1] - bot.y)**2)) <= 2:
                 return True
@@ -131,7 +131,7 @@ class Bot(BaseSimulationEntity):
 
     @staticmethod
     @statement
-    def eat_nearby_food(bot):
+    def eat_nearby_plants(bot):
         if bot.signal:
             bot.signal.dead = True
         bot.signal = StaticSignal(bot.x, bot.y, 0, bot)

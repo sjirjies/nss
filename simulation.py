@@ -5,6 +5,7 @@ import csv
 import time
 import pygame
 from scipy.spatial import cKDTree
+import networkx as nx
 
 from sim_entities import *
 import extra_nodes
@@ -141,15 +142,15 @@ class World:
 
 
 def create_basic_intelligence():
-    check_reproduce_node = ConditionalNode(Bot.can_i_reproduce)
+    check_reproduce_node = ConditionalNode(Bot.reproduce_possible)
     create_clone_node = StatementNode(Bot.create_clone)
     launch_signal_node = StatementNode(Bot.launch_signal)
-    check_active_signal_node = ConditionalNode(Bot.do_i_have_a_signal)
+    check_active_signal_node = ConditionalNode(Bot.signal_exists)
     check_signal_found_food_node = ConditionalNode(Bot.has_signal_found_food)
     wait_node = StatementNode(Bot.wait)
     move_to_target_node = StatementNode(Bot.move_towards_target)
-    check_at_target_node = ConditionalNode(Bot.am_i_near_target)
-    eat_node = StatementNode(Bot.eat_nearby_food)
+    check_at_target_node = ConditionalNode(Bot.target_nearby)
+    eat_node = StatementNode(Bot.eat_nearby_plants)
 
     check_reproduce_node.assign_edges(create_clone_node, launch_signal_node)
     create_clone_node.assign_edge(check_reproduce_node)
@@ -241,11 +242,11 @@ class SimulationData:
             self.best_bot = second_bot
 
     def save_metrics(self):
-        self.graph_results()
+        self.graph_population_data()
         self.save_champion_bot_data()
         print("Total elapsed seconds:", round(time.time() - self.start_time, 2), "seconds.")
 
-    def graph_results(self):
+    def graph_population_data(self):
         print("Saving Graph...")
         # Create some graphs to get a sense of what's going on
         grid = gridspec.GridSpec(2, 2)
@@ -322,11 +323,40 @@ class SimulationData:
             writer.writerow(dict(zip(self.fieldnames, values)))
         # TODO: Replace the text output with a visual graph using something like NetworkX http://networkx.github.io/
         print("Updating Champions Intelligence Text...")
-        string = str(best) + ' on ' + today + ' ' + hour_min + '\n'
-        for node in best.behavior_tree.behavior_nodes:
-            string += '\t' + str(node) + '\n'
-        with open(self.directory + os.sep + 'champions_intelligence.txt', 'a+') as text_file:
-            text_file.write(string)
+        self.save_bot_intelligence(best)
+
+    def save_bot_intelligence(self, bot):
+        print("Saving Champion Intelligence Graph...")
+        behavior_nodes = bot.behavior.behavior_nodes
+        network = nx.DiGraph()
+        network.add_nodes_from(behavior_nodes)
+        # Add the behavior nodes to the network and link them together
+        for node in behavior_nodes:
+            if node.node_type == NodeRegister.statement:
+                network.add_edge(node, node.next_node, label='')
+            elif node.node_type == NodeRegister.conditional:
+                network.add_edge(node, node.true_node, label='1')
+                network.add_edge(node, node.false_node, label='0')
+        # Draw the network
+        layout = nx.shell_layout(network, scale=3)
+        plt.figure(figsize=(10, 10))
+        plt.axis('equal')
+        plt.title("%s: Born:%s, Max Age:%s, Peak Energy:%s, Total Children:%s" %
+                  (str(bot), str(bot.birthday), str(bot.age), str(bot.peak_energy), str(bot.number_children)))
+        nx.draw_networkx_edges(network, layout, width=0.5, alpha=0.75, edge_color='black', arrows=True)
+        statement_color = '#D7E7F7'
+        conditional_color = '#F7D7DA'
+        colors = [statement_color if node.node_type == NodeRegister.statement else conditional_color
+                  for node in network.nodes()]
+        nx.draw_networkx_nodes(network, layout, node_size=1800, node_color=colors, alpha=1)
+        # Reformat node names to make them easier to read
+        names = [(node, str(node.function.__name__).replace('_', '\n')) for node in behavior_nodes]
+        labels = {key: value for (key, value) in names}
+        nx.draw_networkx_labels(network, layout, labels, font_size=10, font_family='sans-serif')
+        edge_names = nx.get_edge_attributes(network, 'label')
+        nx.draw_networkx_edge_labels(network, layout, edge_labels=edge_names, label_pos=0.7)
+        plt.axis('off')
+        plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
 
 
 class GraphicalSimulation:
@@ -421,4 +451,4 @@ def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, 
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
-    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=3)
+    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=1)

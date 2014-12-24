@@ -27,7 +27,7 @@ def set_random_target(bot):
 
 
 @statement
-def kill_and_eat_nearby_bots(bot):
+def eat_nearby_bots(bot):
     if bot.signal:
         bot.signal.dead = True
     bot.signal = StaticSignal(bot.x, bot.y, 2, bot)
@@ -41,7 +41,7 @@ def kill_and_eat_nearby_bots(bot):
 
 
 @conditional
-def has_signal_detected_bots(bot):
+def has_signal_found_bots(bot):
     if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
         for item in bot.signal.detected_objects:
             if isinstance(item, Bot):
@@ -52,7 +52,7 @@ def has_signal_detected_bots(bot):
 
 
 @conditional
-def has_signal_detected_other_signal(bot):
+def has_signal_found_signal(bot):
     if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
         for item in bot.signal.detected_objects:
             if isinstance(item, Bot) and item is not bot.signal:
@@ -63,7 +63,7 @@ def has_signal_detected_other_signal(bot):
 
 
 @statement
-def consume_nearby_signal(bot):
+def eat_nearby_signal(bot):
     if bot.signal:
         bot.signal.dead = True
     bot.signal = StaticSignal(bot.x, bot.y, 2, bot)
