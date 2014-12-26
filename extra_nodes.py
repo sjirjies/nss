@@ -8,7 +8,7 @@ import math
 
 @statement
 def create_local_signal(bot):
-    bot.signal = StaticSignal(bot.x, bot.y, 2, bot)
+    bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
     bot.signal.diameter = 16
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
 
@@ -30,7 +30,7 @@ def set_random_target(bot):
 def eat_nearby_bots(bot):
     if bot.signal:
         bot.signal.dead = True
-    bot.signal = StaticSignal(bot.x, bot.y, 2, bot)
+    bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
     bot.signal.diameter = 4
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
     bot.signal.step()
@@ -66,7 +66,7 @@ def has_signal_found_signal(bot):
 def eat_nearby_signal(bot):
     if bot.signal:
         bot.signal.dead = True
-    bot.signal = StaticSignal(bot.x, bot.y, 2, bot)
+    bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
     bot.signal.diameter = 4
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
     bot.signal.step()
