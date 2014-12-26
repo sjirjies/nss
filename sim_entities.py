@@ -221,7 +221,7 @@ class Signal(BaseSimulationEntity):
         return self.name
 
 
-# TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properties.
+# TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properies.
 class StaticSignal(Signal):
     def __init__(self, x, y, energy, owner, name=None):
         super().__init__(x, y, energy, owner, name)
