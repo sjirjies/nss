@@ -60,29 +60,38 @@ class World:
         if self.plant_limit and len(self.plants) >= self.plant_limit:
             return False
         self.plants.append(plant)
+        return True
 
     def _add_bot(self, bot):
         if self.bot_limit and len(self.bots) >= self.bot_limit:
             return False
         self.bots.append(bot)
+        return True
 
     def _add_signal(self, signal):
         self.signals.append(signal)
+        return True
 
     def add_entity(self, entity):
-        # Note: add energy to entities before adding them, or they will be refused.
-        if entity.energy == 0:
+        if entity.energy < 0:
             return False
+        if self.energy_pool and self.energy_pool < entity.energy:
+            return False
+        success = False
         if isinstance(entity, Signal):
-            self._add_signal(entity)
+            success = self._add_signal(entity)
         elif isinstance(entity, Plant):
-            self._add_plant(entity)
+            success = self._add_plant(entity)
         elif isinstance(entity, Bot):
-            self._add_bot(entity)
+            success = self._add_bot(entity)
         else:
             raise ValueError("%s is %s. Must be either a Signal, Plant, or Bot" % (entity, type(entity)))
-        entity.world = self
-        entity.birthday = self.tick_number
+        if success:
+            entity.world = self
+            entity.birthday = self.tick_number
+            if self.energy_pool is not None:
+                self.energy_pool -= entity.energy
+        return success
 
     def aggregate_entities(self):
         self.all_entities = []
@@ -102,26 +111,37 @@ class World:
             self.kd_tree = cKDTree(point_locations, leafsize=15)
 
     def give_energy_to_entity(self, energy_to_give, entity):
+        if energy_to_give < 0:
+            return False
         if self.energy_pool is not None:
             if self.energy_pool < energy_to_give:
                 energy_to_give = self.energy_pool
             self.energy_pool -= energy_to_give
         entity.energy += energy_to_give
+        return True
 
     def drain_energy_from_entity(self, energy_to_drain, entity):
+        if energy_to_drain < 0:
+            return False
         if entity.energy <= energy_to_drain:
             energy_to_drain = entity.energy
             entity.dead = True
         entity.energy -= energy_to_drain
         if self.energy_pool is not None:
             self.energy_pool += energy_to_drain
+        return True
 
     def transfer_energy_between_entities(self, energy_to_transfer, *, donor, recipient):
+        if donor.dead or recipient.dead:
+            return False
+        if energy_to_transfer < 0:
+            return False
         if donor.energy <= energy_to_transfer:
             energy_to_transfer = donor.energy
             donor.dead = True
         donor.energy -= energy_to_transfer
         recipient.energy += energy_to_transfer
+        return True
 
     def get_unit_vector_to_point(self, start_point, target_point):
         x_diff, y_diff = target_point[0] - start_point[0], target_point[1] - start_point[1]
