@@ -6,7 +6,6 @@ import csv
 import time
 import pygame
 from scipy.spatial import cKDTree
-import networkx as nx
 
 from sim_entities import *
 import behavior_functions
@@ -323,41 +322,48 @@ class SimulationData:
                       round(time.time() - self.start_time, 1), today, hour_min)
             writer.writerow(dict(zip(self.fieldnames, values)))
         # TODO: Replace the text output with a visual graph using something like NetworkX http://networkx.github.io/
-        print("Updating Champions Intelligence Text...")
         self.save_bot_intelligence(best)
 
     def save_bot_intelligence(self, bot):
-        print("Saving Champion Intelligence Graph...")
-        behavior_nodes = bot.behavior.behavior_nodes
-        network = nx.DiGraph()
-        network.add_nodes_from(behavior_nodes)
-        # Add the behavior nodes to the network and link them together
-        for node in behavior_nodes:
-            if node.node_type == NodeRegister.statement:
-                network.add_edge(node, node.next_node, label='')
-            elif node.node_type == NodeRegister.conditional:
-                network.add_edge(node, node.true_node, label='1')
-                network.add_edge(node, node.false_node, label='0')
-        # Draw the network
-        layout = nx.shell_layout(network, scale=3)
-        plt.figure(figsize=(10, 10))
-        plt.axis('equal')
-        plt.title("%s: Born:%s, Max Age:%s, Peak Energy:%s, Total Children:%s" %
-                  (str(bot), str(bot.birthday), str(bot.age), str(bot.peak_energy), str(bot.number_children)))
-        nx.draw_networkx_edges(network, layout, width=0.5, alpha=0.75, edge_color='black', arrows=True)
-        statement_color = '#D7E7F7'
-        conditional_color = '#F7D7DA'
-        colors = [statement_color if node.node_type == NodeRegister.statement else conditional_color
-                  for node in network.nodes()]
-        nx.draw_networkx_nodes(network, layout, node_size=1800, node_color=colors, alpha=1)
-        # Reformat node names to make them easier to read
-        names = [(node, str(node.function.__name__).replace('_', '\n')) for node in behavior_nodes]
-        labels = {key: value for (key, value) in names}
-        nx.draw_networkx_labels(network, layout, labels, font_size=10, font_family='sans-serif')
-        edge_names = nx.get_edge_attributes(network, 'label')
-        nx.draw_networkx_edge_labels(network, layout, edge_labels=edge_names, label_pos=0.7)
-        plt.axis('off')
-        plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
+        has_network_x = True
+        try:
+            import networkx as nx
+        except ImportError:
+            print("Could not load Networkx module. Skipping intelligence graph creation.")
+            has_network_x = False
+        if has_network_x:
+            # TODO: Make BehaviorGraph track the launch node and mark it in the graph output
+            print("Saving Champion Intelligence Graph...")
+            behavior_nodes = bot.behavior.behavior_nodes
+            network = nx.DiGraph()
+            network.add_nodes_from(behavior_nodes)
+            # Add the behavior nodes to the network and link them together
+            for node in behavior_nodes:
+                if node.node_type == NodeRegister.statement:
+                    network.add_edge(node, node.next_node, label='')
+                elif node.node_type == NodeRegister.conditional:
+                    network.add_edge(node, node.true_node, label='1')
+                    network.add_edge(node, node.false_node, label='0')
+            # Draw the network
+            layout = nx.shell_layout(network, scale=3)
+            plt.figure(figsize=(10, 10))
+            plt.axis('equal')
+            plt.title("%s: Born:%s, Age:%s, Peak Energy:%s, Children:%s" %
+                      (str(bot), str(bot.birthday), str(bot.age), str(bot.peak_energy), str(bot.number_children)))
+            nx.draw_networkx_edges(network, layout, width=0.5, alpha=0.75, edge_color='black', arrows=True)
+            statement_color = '#D7E7F7'
+            conditional_color = '#F7D7DA'
+            colors = [statement_color if node.node_type == NodeRegister.statement else conditional_color
+                      for node in network.nodes()]
+            nx.draw_networkx_nodes(network, layout, node_size=1800, node_color=colors, alpha=1)
+            # Reformat node names to make them easier to read
+            names = [(node, str(node.function.__name__).replace('_', '\n')) for node in behavior_nodes]
+            labels = {key: value for (key, value) in names}
+            nx.draw_networkx_labels(network, layout, labels, font_size=10, font_family='sans-serif')
+            edge_names = nx.get_edge_attributes(network, 'label')
+            nx.draw_networkx_edge_labels(network, layout, edge_labels=edge_names, label_pos=0.7)
+            plt.axis('off')
+            plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
 
 
 class GraphicalSimulation:
