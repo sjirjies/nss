@@ -9,7 +9,7 @@ from scipy.spatial import cKDTree
 import networkx as nx
 
 from sim_entities import *
-import extra_nodes
+import behavior_functions
 
 
 class World:
@@ -143,15 +143,15 @@ class World:
 
 
 def create_basic_intelligence():
-    check_reproduce_node = ConditionalNode(Bot.reproduce_possible)
-    create_clone_node = StatementNode(Bot.create_clone)
-    launch_signal_node = StatementNode(Bot.launch_signal)
-    check_active_signal_node = ConditionalNode(Bot.signal_exists)
-    check_signal_found_food_node = ConditionalNode(Bot.has_signal_found_food)
-    wait_node = StatementNode(Bot.wait)
-    move_to_target_node = StatementNode(Bot.move_towards_target)
-    check_at_target_node = ConditionalNode(Bot.target_nearby)
-    eat_node = StatementNode(Bot.eat_nearby_plants)
+    check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
+    create_clone_node = StatementNode(behavior_functions.create_clone)
+    launch_signal_node = StatementNode(behavior_functions.launch_signal)
+    check_active_signal_node = ConditionalNode(behavior_functions.signal_exists)
+    check_signal_found_food_node = ConditionalNode(behavior_functions.has_signal_found_food)
+    wait_node = StatementNode(behavior_functions.wait)
+    move_to_target_node = StatementNode(behavior_functions.move_towards_target)
+    check_at_target_node = ConditionalNode(behavior_functions.target_nearby)
+    eat_node = StatementNode(behavior_functions.eat_nearby_plants)
 
     check_reproduce_node.assign_edges(create_clone_node, launch_signal_node)
     create_clone_node.assign_edge(check_reproduce_node)
