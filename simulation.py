@@ -410,41 +410,44 @@ class GraphicalSimulation:
                 self.world.add_entity(Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], 250, behavior))
             else:
                 self.world.add_entity(Bot(screen_width//2, screen_height//2, 250, behavior))
+        paused = False
+        # TODO: Account for paused time in the SimulationData results
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = 0
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = 0
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    paused = False if paused else True
             screen.fill((0, 0, 0))
             # Update the world
-            self.world.step()
-            # Collect Data if enabled
-            if sim_data:
-                sim_data.poll_world_for_data()
-            # Draw the plants and bots
-            pixels = pygame.surfarray.pixels3d(screen)
-            for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
-                for entity in entity_list:
-                    if 0 <= entity.x < screen_width and 0 <= entity.y < screen_height:
-                        pixels[entity.x][entity.y] = color
-                    # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
-            del pixels
-            screen.lock()
-            for signal in self.world.signals:
-                diameter = signal.diameter
-                left = signal.x - (diameter/2)
-                top = signal.y - (diameter/2)
-                signal_color = (40, 50, 200)
-                if isinstance(signal, StaticSignal):
-                    signal_color = (100, 130, 250)
-                pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
-            screen.unlock()
-            if scale > 1:
-                pygame.transform.scale(screen, (window_width, window_height), window)
-            else:
-                window.blit(screen, (0, 0))
-            tick += 1
+            if not paused:
+                self.world.step()
+                # Collect Data if enabled
+                if sim_data:
+                    sim_data.poll_world_for_data()
+                # Draw the plants and bots
+                pixels = pygame.surfarray.pixels3d(screen)
+                for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
+                    for entity in entity_list:
+                        if 0 <= entity.x < screen_width and 0 <= entity.y < screen_height:
+                            pixels[entity.x][entity.y] = color
+                        # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
+                del pixels
+                screen.lock()
+                for signal in self.world.signals:
+                    diameter = signal.diameter
+                    left = signal.x - (diameter/2)
+                    top = signal.y - (diameter/2)
+                    signal_color = signal.color if signal.color else (75, 75, 75)
+                    pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
+                screen.unlock()
+                if scale > 1:
+                    pygame.transform.scale(screen, (window_width, window_height), window)
+                else:
+                    window.blit(screen, (0, 0))
+                tick += 1
             pygame.display.update()
             self.clock.tick(fps)
             # If we have no more entities then end the simulation
@@ -467,4 +470,5 @@ def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, 
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
+    # TODO: Create a Simulation and SimulationParameters class
     run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=2, random_bots=True)

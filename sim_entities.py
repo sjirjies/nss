@@ -86,7 +86,7 @@ class Bot(BaseSimulationEntity):
     @statement
     def launch_signal(bot):
         # TODO: Make signal creation not require passing 0 and setting energy with a World method
-        bot.signal = MobileSignal(bot.x, bot.y, np.random.ranf()*2*math.pi, 0, bot)
+        bot.signal = MobileSignal(bot.x, bot.y, np.random.ranf()*2*math.pi, 0, bot, color=(60, 60, 190))
         bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
 
     @staticmethod
@@ -134,7 +134,7 @@ class Bot(BaseSimulationEntity):
     def eat_nearby_plants(bot):
         if bot.signal:
             bot.signal.dead = True
-        bot.signal = StaticSignal(bot.x, bot.y, 0, bot)
+        bot.signal = StaticSignal(bot.x, bot.y, 0, bot, color=(120, 240, 130))
         bot.world.transfer_energy_between_entities(3, donor=bot, recipient=bot.signal)
         bot.signal.step()
         if bot.signal.detected_objects:
@@ -193,13 +193,14 @@ class Plant(BaseSimulationEntity):
 class Signal(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x, y, energy, owner, name=None):
+    def __init__(self, x, y, energy, owner, name=None, color=None):
         super().__init__(x, y, energy)
         self.owner = owner
         self.world = owner.world
         self.detected_objects = []
         self.diameter = 8
         self.speed = 0
+        self.color = color
         Signal.counter += 1
         if name:
             self.name = name
@@ -223,8 +224,8 @@ class Signal(BaseSimulationEntity):
 
 # TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properies.
 class StaticSignal(Signal):
-    def __init__(self, x, y, energy, owner, name=None):
-        super().__init__(x, y, energy, owner, name)
+    def __init__(self, x, y, energy, owner, name=None, color=None):
+        super().__init__(x, y, energy, owner, name, color)
         self.speed = 0
         self.diameter = 4
 
@@ -233,8 +234,8 @@ class StaticSignal(Signal):
 
 
 class MobileSignal(Signal):
-    def __init__(self, x, y, radians, energy, owner, name=None):
-        super().__init__(x, y, energy, owner, name)
+    def __init__(self, x, y, radians, energy, owner, name=None, color=None):
+        super().__init__(x, y, energy, owner, name, color)
         self.speed = 2
         self.radians = radians
         self.x_diff = self.speed * math.cos(radians)
