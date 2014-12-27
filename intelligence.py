@@ -117,9 +117,25 @@ class BehaviorGraph:
     def return_tree_copy(self):
         return copy.deepcopy(self)
 
-    def generate_random_graph(self):
-        # TODO: Finish creating random graphs
-        pass
+    def generate_random_graph(self, number_of_nodes, percent_conditional=0.5):
+        # First pick some random functions from the registry and create nodes from them
+        self.behavior_nodes = []
+        for counter in range(0, number_of_nodes):
+            if random() < percent_conditional:
+                node = ConditionalNode(choice(NodeRegister.registered_conditionals))
+            else:
+                node = StatementNode(choice(NodeRegister.registered_statements))
+            self.behavior_nodes.append(node)
+        # Now hook the nodes together randomly
+        for node in self.behavior_nodes:
+            if node.node_type == NodeRegister.statement:
+                node.next_node = choice(self.behavior_nodes)
+            else:
+                node.true_node = choice(self.behavior_nodes)
+                node.false_node = choice(self.behavior_nodes)
+        # Now pic a random current behavior node
+        self.current_behavior_node = choice(self.behavior_nodes)
+
 
     def mutate_behavior(self):
         mutation_type = np.random.random_integers(0, 3)

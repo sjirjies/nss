@@ -1,5 +1,6 @@
 import os
 from matplotlib import pyplot as plt
+from random import randint
 import matplotlib.gridspec as gridspec
 import csv
 import time
@@ -360,7 +361,7 @@ class SimulationData:
 
 
 class GraphicalSimulation:
-    def __init__(self, world, plant_ticks, collect_data=True, fps=20, scale=2):
+    def __init__(self, world, plant_ticks, collect_data=True, fps=20, scale=2, random_bots=False):
         # Set an environment variable to center the pygame screen
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
@@ -391,11 +392,24 @@ class GraphicalSimulation:
             if sim_data:
                 sim_data.poll_world_for_data()
         # Add a bot and display the simulation
-        behavior = create_basic_intelligence()
-        if self.world.boundary_sizes:
-            self.world.add_entity(Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], 250, behavior))
+        if random_bots:
+            number_of_random_bots = 500
+            for bot in range(0, number_of_random_bots):
+                behavior = BehaviorGraph()
+                behavior.generate_random_graph(8)
+                if self.world.boundary_sizes:
+                    x = randint(0, self.world.boundary_sizes[0])
+                    y = randint(0, self.world.boundary_sizes[1])
+                else:
+                    x = randint(0, 100)
+                    y = randint(0, 100)
+                self.world.add_entity(Bot(x, y, 250, behavior_graph=behavior))
         else:
-            self.world.add_entity(Bot(screen_width//2, screen_height//2, 250, behavior))
+            behavior = create_basic_intelligence()
+            if self.world.boundary_sizes:
+                self.world.add_entity(Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], 250, behavior))
+            else:
+                self.world.add_entity(Bot(screen_width//2, screen_height//2, 250, behavior))
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -442,13 +456,15 @@ class GraphicalSimulation:
         pygame.quit()
 
 
-def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True, fps=20, scale=2):
+def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True,
+                   fps=20, scale=2, random_bots=False):
     if graphics:
-        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data, fps=fps, scale=scale)
+        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data,
+                            fps=fps, scale=scale, random_bots=random_bots)
     else:
         no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=collect_data)
 
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
-    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=1)
+    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=2, random_bots=True)
