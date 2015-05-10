@@ -4,12 +4,12 @@ import numpy as np
 
 
 class BaseSimulationEntity:
-    def __init__(self, x, y, energy):
+    def __init__(self, x, y):
         self.name = 'entity'
         self.world = None
         self.x = x
         self.y = y
-        self.energy = energy
+        self.energy = 0
         self.dead = False
         self.birthday = None
         self.age = 0
@@ -28,13 +28,13 @@ class BaseSimulationEntity:
 class Bot(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x_start, y_start, energy, behavior_graph=None, name=None):
-        super().__init__(x_start, y_start, energy)
+    def __init__(self, x_start, y_start, behavior_graph=None, name=None):
+        super().__init__(x_start, y_start)
         self.behavior = behavior_graph
         self.speed = 1
         self.child_investment = 200
         self.max_age = 2000
-        self.peak_energy = energy
+        self.peak_energy = 0
         self.target_point = x_start, y_start
         self.signal = None
         Bot.counter += 1
@@ -62,8 +62,8 @@ class Bot(BaseSimulationEntity):
 class Plant(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x, y, energy, name=None):
-        super().__init__(x, y, energy)
+    def __init__(self, x, y, name=None):
+        super().__init__(x, y)
         Plant.counter += 1
         if name is None:
             self.name = "Plant_" + str(Plant.counter)
@@ -98,7 +98,7 @@ class Plant(BaseSimulationEntity):
                 child_x = self.x + (travel_distance * math.sin(travel_angle_rads))
                 child_y = self.y + (travel_distance * math.cos(travel_angle_rads))
                 # Create a baby plant and give it energy from the parent
-                baby_plant = Plant(child_x, child_y, 0)
+                baby_plant = Plant(child_x, child_y)
                 self.world.transfer_energy_between_entities(self.child_investment, donor=self, recipient=baby_plant)
                 self.number_children += 1
                 self.world.add_entity(baby_plant)
@@ -107,8 +107,8 @@ class Plant(BaseSimulationEntity):
 class Signal(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x, y, energy, owner, name=None, color=None):
-        super().__init__(x, y, energy)
+    def __init__(self, x, y, owner, name=None, color=None):
+        super().__init__(x, y)
         self.owner = owner
         self.world = owner.world
         self.detected_objects = []
@@ -138,8 +138,8 @@ class Signal(BaseSimulationEntity):
 
 # TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properies.
 class StaticSignal(Signal):
-    def __init__(self, x, y, energy, owner, name=None, color=None):
-        super().__init__(x, y, energy, owner, name, color)
+    def __init__(self, x, y, owner, name=None, color=None):
+        super().__init__(x, y, owner, name, color)
         self.speed = 0
         self.diameter = 4
 
@@ -148,8 +148,8 @@ class StaticSignal(Signal):
 
 
 class MobileSignal(Signal):
-    def __init__(self, x, y, radians, energy, owner, name=None, color=None):
-        super().__init__(x, y, energy, owner, name, color)
+    def __init__(self, x, y, radians, owner, name=None, color=None):
+        super().__init__(x, y, owner, name, color)
         self.speed = 2
         self.radians = radians
         self.x_diff = self.speed * math.cos(radians)

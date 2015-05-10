@@ -60,29 +60,34 @@ class World:
         if self.plant_limit and len(self.plants) >= self.plant_limit:
             return False
         self.plants.append(plant)
+        return True
 
     def _add_bot(self, bot):
         if self.bot_limit and len(self.bots) >= self.bot_limit:
             return False
         self.bots.append(bot)
+        return True
 
     def _add_signal(self, signal):
         self.signals.append(signal)
+        return True
 
     def add_entity(self, entity):
         # Note: add energy to entities before adding them, or they will be refused.
-        if entity.energy == 0:
+        if entity.energy < 0:
             return False
         if isinstance(entity, Signal):
-            self._add_signal(entity)
+            success = self._add_signal(entity)
         elif isinstance(entity, Plant):
-            self._add_plant(entity)
+            success = self._add_plant(entity)
         elif isinstance(entity, Bot):
-            self._add_bot(entity)
+            success = self._add_bot(entity)
         else:
             raise ValueError("%s is %s. Must be either a Signal, Plant, or Bot" % (entity, type(entity)))
-        entity.world = self
-        entity.birthday = self.tick_number
+        if success:
+            entity.world = self
+            entity.birthday = self.tick_number
+        return success
 
     def aggregate_entities(self):
         self.all_entities = []
@@ -102,26 +107,36 @@ class World:
             self.kd_tree = cKDTree(point_locations, leafsize=15)
 
     def give_energy_to_entity(self, energy_to_give, entity):
-        if self.energy_pool is not None:
-            if self.energy_pool < energy_to_give:
-                energy_to_give = self.energy_pool
-            self.energy_pool -= energy_to_give
-        entity.energy += energy_to_give
+        if energy_to_give >= 0:
+            if self.energy_pool is not None:
+                if self.energy_pool < energy_to_give:
+                    energy_to_give = self.energy_pool
+                self.energy_pool -= energy_to_give
+            entity.energy += energy_to_give
+            return True
+        return False
 
     def drain_energy_from_entity(self, energy_to_drain, entity):
-        if entity.energy <= energy_to_drain:
-            energy_to_drain = entity.energy
-            entity.dead = True
-        entity.energy -= energy_to_drain
-        if self.energy_pool is not None:
-            self.energy_pool += energy_to_drain
+        if energy_to_drain >= 0:
+            if entity.energy <= energy_to_drain:
+                energy_to_drain = entity.energy
+                entity.dead = True
+            entity.energy -= energy_to_drain
+            if self.energy_pool is not None:
+                self.energy_pool += energy_to_drain
+            return True
+        else:
+            return False
 
     def transfer_energy_between_entities(self, energy_to_transfer, *, donor, recipient):
+        if recipient.dead or donor.dead:
+            return False
         if donor.energy <= energy_to_transfer:
             energy_to_transfer = donor.energy
             donor.dead = True
         donor.energy -= energy_to_transfer
         recipient.energy += energy_to_transfer
+        return True
 
     def get_unit_vector_to_point(self, start_point, target_point):
         x_diff, y_diff = target_point[0] - start_point[0], target_point[1] - start_point[1]
@@ -189,11 +204,13 @@ def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=Tr
                 print(" Finished Tick %d / %d" % (tick, ticks))
 
     center = world.boundary_sizes[0]/2, world.boundary_sizes[1]/2
-    world.add_entity(Plant(center[0], center[1], 50))
+    world.add_entity(Plant(center[0], center[1]))
+    world.give_energy_to_entity(5, world.plants[0])
     print("Running %s ticks with just plants..." % plant_growth_ticks)
     run(plant_growth_ticks, with_bots=False)
     behavior = create_basic_intelligence()
-    world.add_entity(Bot(center[0], center[1], 300, behavior))
+    world.add_entity(Bot(center[0], center[1], behavior))
+    world.give_energy_to_entity(300, world.bots[0])
     print("Running %s ticks with bots added..." % additional_ticks)
     run(additional_ticks, with_bots=True)
     if sim_data:
@@ -208,7 +225,7 @@ class SimulationData:
         self.bot_numbers = []
         self.signal_numbers = []
         # Create a dummy 'best bot' for now
-        self.best_bot = Bot(0, 0, 0, name='Dummy_Bot')
+        self.best_bot = Bot(0, 0, name='Dummy_Bot')
         self.best_bot.birthday = 0
         self.directory = os.getcwd() + os.sep + 'metrics'
         self.hall_champions_file_path = self.directory + os.sep + 'hall_of_champions.csv'
@@ -386,9 +403,10 @@ class GraphicalSimulation:
         tick = 0
         # Run the simulation to get plants spread out
         if self.world.boundary_sizes:
-            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1], 5))
+            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1]))
         else:
-            self.world.add_entity(Plant(screen_width//2, screen_height//2, 5))
+            self.world.add_entity(Plant(screen_width//2, screen_height//2))
+        world.give_energy_to_entity(5, world.plants[0])
         if collect_data:
             sim_data = SimulationData(self.world)
         else:
@@ -409,13 +427,17 @@ class GraphicalSimulation:
                 else:
                     x = randint(0, 100)
                     y = randint(0, 100)
-                self.world.add_entity(Bot(x, y, 250, behavior_graph=behavior))
+                bot = Bot(x, y, behavior_graph=behavior)
+                self.world.give_energy_to_entity(250, bot)
+                self.world.add_entity(bot)
         else:
             behavior = create_basic_intelligence()
             if self.world.boundary_sizes:
-                self.world.add_entity(Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], 250, behavior))
+                bot = Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], behavior)
             else:
-                self.world.add_entity(Bot(screen_width//2, screen_height//2, 250, behavior))
+                bot = Bot(screen_width//2, screen_height//2, behavior)
+            self.world.give_energy_to_entity(250, bot)
+            self.world.add_entity(bot)
         paused = False
         # TODO: Account for paused time in the SimulationData results
         while running:
@@ -477,4 +499,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     # TODO: Create a Simulation and SimulationParameters class
-    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=2, random_bots=True)
+    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=2, random_bots=False)

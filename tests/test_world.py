@@ -8,22 +8,26 @@ class TestParameterLimits(unittest.TestCase):
         world = World(bot_limit=2)
         self.assertEqual(world.bot_limit, 2, 'Bot limit is not correctly set from parameter')
         self.assertEqual(len(world.bots), 0, 'World should start with zero bots')
-        world.add_entity(Bot(0, 0, 1))
+        bot1 = Bot(0, 0)
+        world.give_energy_to_entity(1, bot1)
+        world.add_entity(bot1)
         self.assertEqual(len(world.bots), 1, "First bot is not added to the world's list of bots")
-        world.add_entity(Bot(0, 1, 1))
+        bot2 = Bot(0, 0)
+        world.give_energy_to_entity(1, bot2)
+        world.add_entity(bot2)
         self.assertEqual(len(world.bots), 2, "Second bot is not added to world's list of bots")
-        self.assertEqual(world.add_entity(Bot(0, 2, 1)), False, "Adding bots at the limit should return False")
+        self.assertEqual(world.add_entity(Bot(0, 2)), False, "Adding bots at the limit should return False")
         self.assertEqual(len(world.bots), 2, "Bots past the limit should not be appended to the world")
 
     def test_plant_limit(self):
         world = World(plant_limit=2)
         self.assertEqual(world.plant_limit, 2, 'Plant limit is not correctly set from parameter')
         self.assertEqual(len(world.plants), 0, 'World should start with zero plants')
-        world.add_entity(Plant(0, 0, 1))
+        world.add_entity(Plant(0, 0))
         self.assertEqual(len(world.plants), 1, "First plant is not added to the world's list of plants")
-        world.add_entity(Plant(0, 1, 1))
+        world.add_entity(Plant(0, 1))
         self.assertEqual(len(world.plants), 2, "Second plant is not added to world's list of plants")
-        self.assertEqual(world.add_entity(Plant(0, 2, 1)), False, "Adding plants at the limit should return False")
+        self.assertEqual(world.add_entity(Plant(0, 2)), False, "Adding plants at the limit should return False")
         self.assertEqual(len(world.plants), 2, "Plants past the limit should not be appended to the world")
 
     def test_boundary_sizes_passed(self):
@@ -46,44 +50,49 @@ class TestParameterLimits(unittest.TestCase):
 
 
 class TestWorldAddEntity(unittest.TestCase):
+    def setUp(self):
+        self.plant = Plant(0, 0)
+
     def test_add_entity_with_zero_energy(self):
         world = World(energy_pool=10)
-        plant = Plant(0, 0, 0)
-        world.add_entity(plant)
+        world.add_entity(self.plant)
         self.assertEqual(world.energy_pool, 10, "Adding an entity with 0 energy should not take from the energy pool")
         self.assertEqual(world.initialized_energy, 10, "Initialized energy should not alter")
-        self.assertEqual(world.plants, [plant],
+        self.assertEqual(world.plants, [self.plant],
                          "Adding an entity with 0 energy should still be appended to its respective list")
 
     def test_add_entity_just_short_energy_limit(self):
         world = World(energy_pool=10)
-        world.add_entity(Plant(0, 0, 9))
+        world.give_energy_to_entity(9, self.plant)
+        world.add_entity(self.plant)
         self.assertEqual(world.energy_pool, 1, "Adding entities should drain energy from the energy pool")
         self.assertEqual(world.initialized_energy, 10, "Initialized energy should not alter")
 
     def test_add_entity_equal_energy_limit(self):
         world = World(energy_pool=10)
-        world.add_entity(Plant(0, 0, 10))
+        world.give_energy_to_entity(10, self.plant)
+        world.add_entity(self.plant)
         self.assertEqual(world.energy_pool, 0, "Consuming all energy from pool should leave zero remaining")
         self.assertEqual(world.initialized_energy, 10, "Initialized energy should not alter")
 
     def test_add_entity_above_energy_limit(self):
+        # This test may not be needed
         world = World(energy_pool=10)
-        self.assertEqual(world.add_entity(Plant(0, 0, 11)), False,
-                         "Trying to add an entity with more energy in the pool should return False")
-        self.assertEqual(len(world.plants), 0, "Plants should not be added if they require energy not available")
-        self.assertEqual(world.energy_pool, 10, "Energy should not be consumed if no entity is added to world")
+        self.assertEqual(world.give_energy_to_entity(11, self.plant), True,
+                         "An energy transfer beyond the worlds energy pool should proceed to drain the pool")
+        self.assertEqual(world.energy_pool, 0, "All energy should be consumed after attempting too large a transfer")
         self.assertEqual(world.initialized_energy, 10, "Initialized energy should not alter")
 
     def test_add_entity_negative_energy_with_energy_limit(self):
+        # This test may not be needed
         world_with_limits = World(energy_pool=10)
-        self.assertEqual(world_with_limits.add_entity(Plant(0, 0, -5)), False,
-                         "Should not be able to add entity with negative energy with an energy pool")
+        self.assertFalse(world_with_limits.give_energy_to_entity(-5, self.plant),
+                         'Transferring negative energy should not be allowed.')
         self.assertEqual(world_with_limits.initialized_energy, 10, "Initialized energy should not alter")
 
     def test_add_entity_negative_energy_without_world_limits(self):
         world_no_limits = World()
-        self.assertEqual(world_no_limits.add_entity(Plant(0, 0, -5)), False,
+        self.assertFalse(world_no_limits.give_energy_to_entity(-5, self.plant),
                          "Should not be able to add entity with negative energy")
 
 
@@ -95,7 +104,8 @@ class TestWorldAggregateEntities(unittest.TestCase):
 
     def test_add_single_entity(self):
         world = World()
-        plant = Plant(0, 0, 1)
+        plant = Plant(0, 0)
+        world.give_energy_to_entity(1, plant)
         world.add_entity(plant)
         world.aggregate_entities()
         self.assertEqual(world.all_entities, [plant],
@@ -104,9 +114,11 @@ class TestWorldAggregateEntities(unittest.TestCase):
 
     def test_add_several_entities(self):
         world = World()
-        plant = Plant(0, 0, 1)
-        bot = Bot(0, 1, 2)
-        signal = StaticSignal(0, 3, 2, bot)
+        plant = Plant(0, 0)
+        bot = Bot(0, 1)
+        signal = StaticSignal(0, 3, bot)
+        for entity in [plant, bot, signal]:
+            world.give_energy_to_entity(1, entity)
         world.add_entity(plant)
         world.add_entity(bot)
         world.add_entity(signal)
@@ -118,9 +130,11 @@ class TestWorldAggregateEntities(unittest.TestCase):
 
     def test_add_several_entities_and_remove_one(self):
         world = World()
-        plant = Plant(0, 0, 1)
-        bot = Bot(0, 1, 2)
-        signal = StaticSignal(0, 3, 2, bot)
+        plant = Plant(0, 0)
+        bot = Bot(0, 1)
+        signal = StaticSignal(0, 3, bot)
+        for entity in [plant, bot, signal]:
+            world.give_energy_to_entity(1, entity)
         world.add_entity(plant)
         world.add_entity(bot)
         world.add_entity(signal)
@@ -137,7 +151,7 @@ class TestWorldAggregateEntities(unittest.TestCase):
 class TestWorldGiveEnergyToEntityWithEnergyPool(unittest.TestCase):
     def setUp(self):
         self.world = World(energy_pool=10)
-        self.bot = Bot(0, 0, 0)
+        self.bot = Bot(0, 0)
         self.world.add_entity(self.bot)
 
     def test_give_less_energy_than_energy_pool(self):
@@ -177,7 +191,7 @@ class TestWorldGiveEnergyToEntityWithEnergyPool(unittest.TestCase):
 class TestWorldGiveEnergyToEntityWithoutPool(unittest.TestCase):
     def setUp(self):
         self.world = World()
-        self.bot = Bot(0, 0, 0)
+        self.bot = Bot(0, 0)
         self.world.add_entity(self.bot)
 
     def test_give_energy_no_energy_pool(self):
@@ -200,7 +214,8 @@ class TestWorldGiveEnergyToEntityWithoutPool(unittest.TestCase):
 class TestWorldDrainEnergyFromEntityWithoutPool(unittest.TestCase):
     def setUp(self):
         self.world = World()
-        self.bot = Bot(0, 0, 10)
+        self.bot = Bot(0, 0)
+        self.world.give_energy_to_entity(10, self.bot)
         self.world.add_entity(self.bot)
 
     def test_drain_negative_energy_without_pool(self):
@@ -237,7 +252,8 @@ class TestWorldDrainEnergyFromEntityWithoutPool(unittest.TestCase):
 class TestWorldDrainEnergyFromEntityWithPool(unittest.TestCase):
     def setUp(self):
         self.world = World(energy_pool=10)
-        self.bot = Bot(0, 0, 3)
+        self.bot = Bot(0, 0)
+        self.world.give_energy_to_entity(3, self.bot)
         self.world.add_entity(self.bot)
 
     def test_energy_in_pool_affected_by_entity_addition(self):
@@ -297,8 +313,10 @@ class TestWorldDrainEnergyFromEntityWithPool(unittest.TestCase):
 class TestWorldTransferEnergyBetweenEntitiesDonorHasEnergy(unittest.TestCase):
     def setUp(self):
         self.world = World()
-        self.donor = Bot(0, 0, 10)
-        self.recipient = Bot(0, 1, 10)
+        self.donor = Bot(0, 0)
+        self.world.give_energy_to_entity(10, self.donor)
+        self.recipient = Bot(0, 1)
+        self.world.give_energy_to_entity(10, self.recipient)
         self.world.add_entity(self.donor)
         self.world.add_entity(self.recipient)
 
@@ -340,8 +358,9 @@ class TestWorldTransferEnergyBetweenEntitiesDonorHasEnergy(unittest.TestCase):
 class TestWorldTransferEnergyBetweenEntitiesDonorDoesNotHaveEnergy(unittest.TestCase):
     def setUp(self):
         self.world = World()
-        self.donor = Bot(0, 0, 0)
-        self.recipient = Bot(0, 0, 10)
+        self.donor = Bot(0, 0)
+        self.recipient = Bot(0, 0)
+        self.world.give_energy_to_entity(10, self.recipient)
         self.world.add_entity(self.donor)
         self.world.add_entity(self.recipient)
 
@@ -372,8 +391,9 @@ class TestWorldTransferEnergyBetweenEntitiesDonorDoesNotHaveEnergy(unittest.Test
 class TestWorldTransferEnergyBetweenEntitiesToDeadEntity(unittest.TestCase):
     def test_transfer_energy_to_dead_recipient(self):
         world = World()
-        donor = Bot(0, 0, 10)
-        recipient = Bot(0, 0, 0)
+        donor = Bot(0, 0)
+        world.give_energy_to_entity(10, donor)
+        recipient = Bot(0, 0)
         world.add_entity(donor)
         world.add_entity(recipient)
         recipient.dead = True
@@ -386,8 +406,9 @@ class TestWorldTransferEnergyBetweenEntitiesToDeadEntity(unittest.TestCase):
 
     def test_transfer_energy_from_dead_donor(self):
         world = World()
-        donor = Bot(0, 0, 0)
-        recipient = Bot(0, 0, 10)
+        donor = Bot(0, 0)
+        recipient = Bot(0, 0)
+        world.give_energy_to_entity(10, recipient)
         world.add_entity(donor)
         world.add_entity(recipient)
         donor.dead = True
