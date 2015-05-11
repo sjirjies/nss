@@ -99,6 +99,9 @@ class World:
         if success:
             entity.world = self
             entity.birthday = self.tick_number
+            if self.boundary_sizes:
+                entity.x = entity.x % self.boundary_sizes[0]
+                entity.y = entity.y % self.boundary_sizes[1]
         return success
 
     def aggregate_entities(self):
@@ -392,83 +395,108 @@ class Simulation:
         self.clock = pygame.time.Clock()
         if world.boundary_sizes:
             window_width, window_height = world.boundary_sizes
+            # window_width += 60
         else:
             window_width, window_height = 250, 250
-        screen = pygame.Surface((window_width, window_height))
-        screen_width, screen_height = screen.get_width(), screen.get_height()
-        window_width, window_height = scale * window_width, scale * window_height
-        window = pygame.display.set_mode((window_width, window_height), pygame.DOUBLEBUF)
+        self.surface = pygame.Surface((window_width, window_height))
+        self.surface_width, self.surface_height = self.surface.get_width(), self.surface.get_height()
+        self.window_width, self.window_height = scale * window_width, scale * window_height
+        self.window = pygame.display.set_mode((window_width, window_height), pygame.DOUBLEBUF)
         pygame.display.set_caption('NSS')
-        paused = False
-        running = 1
-        tick = 0
+        self.paused = False
+        self.running = 1
+        self.tick = 0
+        self.scale = scale
+        self.fps = fps
         if collect_data:
-            sim_data = SimulationData(self.world)
+            self.data_collector = SimulationData(self.world)
         else:
-            sim_data = None
-        if self.world.boundary_sizes:
-            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1]))
-        else:
-            self.world.add_entity(Plant(0, 0))
-        self.world.give_energy_to_entity(5, self.world.plants[0])
-        print("Running %s ticks with just plants..." % plant_growth_ticks)
-        for i in range(plant_growth_ticks):
-            self.world.step()
-            if sim_data:
-                sim_data.poll_world_for_data()
+            self.data_collector = None
+        self.seed_plants(plant_growth_ticks)
+        # Populate the world with bots
         print("Adding bots...")
         self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
         # TODO: Account for paused time in the SimulationData results
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = 0
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    running = 0
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    paused = False if paused else True
-            screen.fill((0, 0, 0))
+        self.mainloop()
+
+    def mainloop(self):
+        while self.running:
+            self.handle_user_input()
             # Update the world
-            if not paused:
+            if not self.paused:
                 self.world.step()
                 # Collect Data if enabled
-                if sim_data:
-                    sim_data.poll_world_for_data()
-                # Draw the plants and bots
-                pixels = pygame.surfarray.pixels3d(screen)
-                for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
-                    for entity in entity_list:
-                        if 0 <= entity.x < screen_width and 0 <= entity.y < screen_height:
-                            if isinstance(entity, Plant):
-                                ratio = entity.energy/entity.max_energy
-                                color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                            pixels[entity.x][entity.y] = color
-                del pixels
-                screen.lock()
-                for signal in self.world.signals:
-                    diameter = signal.diameter
-                    left = signal.x - (diameter/2)
-                    top = signal.y - (diameter/2)
-                    signal_color = signal.color if signal.color else (75, 75, 75)
-                    pygame.draw.ellipse(screen, signal_color, (left, top, diameter, diameter), 1)
-                screen.unlock()
-                if scale > 1:
-                    pygame.transform.scale(screen, (window_width, window_height), window)
-                else:
-                    window.blit(screen, (0, 0))
-                tick += 1
+                self.collect_data()
+                self.draw_graphics()
+                self.tick += 1
             pygame.display.update()
-            self.clock.tick(fps)
+            self.clock.tick(self.fps)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
-                running = False
+                print("Ending because of lack of bots")
+                self.running = False
+        self.exit()
+
+    def exit(self):
         print("World ran for %s ticks" % self.world.tick_number)
-        if sim_data:
-            sim_data.save_metrics()
         pygame.quit()
+        if self.data_collector:
+            self.data_collector.save_metrics()
+
+    def handle_user_input(self):
+        for event in pygame.event.get():
+            # Let the user quick the simulation
+            if event.type == pygame.QUIT:
+                self.running = 0
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = 0
+            # Let the user pause the simulation
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.paused = False if self.paused else True
+
+    def draw_graphics(self):
+        self.surface.fill((0, 0, 0))
+        pixels = pygame.surfarray.pixels3d(self.surface)
+        for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
+            for entity in entity_list:
+                if 0 <= entity.x < self.surface_width and 0 <= entity.y < self.surface_height:
+                    if isinstance(entity, Plant):
+                        ratio = entity.energy/entity.max_energy
+                        color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
+                    pixels[entity.x][entity.y] = color
+        del pixels
+        self.surface.lock()
+        for signal in self.world.signals:
+            diameter = signal.diameter
+            left = signal.x - (diameter/2)
+            top = signal.y - (diameter/2)
+            signal_color = signal.color if signal.color else (75, 75, 75)
+            pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
+        self.surface.unlock()
+        if self.scale > 1:
+            pygame.transform.scale(self.surface, (self.window_width, self.window_height), self.window)
+        else:
+            self.window.blit(self.surface, (0, 0))
+
+    def seed_plants(self, plant_growth_ticks):
+        if self.world.boundary_sizes:
+            x, y = self.world.half_boundaries[0], self.world.half_boundaries[1]
+        else:
+            x, y = 0, 0
+        plant = Plant(x, y)
+        self.world.add_entity(plant)
+        self.world.give_energy_to_entity(5, plant)
+        print("Running %s ticks with just plants..." % plant_growth_ticks)
+        for i in range(plant_growth_ticks):
+            self.world.step()
+            self.collect_data()
+
+    def collect_data(self):
+        if self.data_collector:
+            self.data_collector.poll_world_for_data()
 
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 500, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
