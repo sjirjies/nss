@@ -10,6 +10,18 @@ from scipy.spatial import cKDTree
 from sim_entities import *
 import behavior_functions
 
+# TODO: Convert to an MVC model
+#   - Get rid of graphical vs non-graphical mode
+#   - Create a Model, which is the simulation
+#   - Create a View that reads from World
+#   - Create a Controller that uses the World API
+# TODO: Have signals carry the location of their origination
+# TODO: Have signals carry a 'message number' from 0-3
+# TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
+# TODO: Create a Camera that can be panned and zoomed
+# TODO: Create a right-pane that displays world information and trends
+# TODO: Improve the APIs
+
 
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
@@ -155,6 +167,24 @@ class World:
             y_diff /= distance
         return x_diff, y_diff
 
+    def populate(self, number_bots, bot_energy, default_behavior=None, behavior_size=8):
+        # Populate the world with bots
+        for bot in range(0, number_bots):
+            if not default_behavior:
+                behavior = BehaviorGraph()
+                behavior.generate_random_graph(behavior_size)
+            else:
+                behavior = default_behavior.return_tree_copy()
+            if self.boundary_sizes:
+                x = randint(0, self.boundary_sizes[0])
+                y = randint(0, self.boundary_sizes[1])
+            else:
+                x = randint(0, 100)
+                y = randint(0, 100)
+            bot = Bot(x, y, behavior_graph=behavior)
+            self.give_energy_to_entity(bot_energy, bot)
+            self.add_entity(bot)
+
 
 def create_basic_intelligence():
     check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
@@ -183,38 +213,6 @@ def create_basic_intelligence():
                                eat_node, check_active_signal_node]
     behavior.current_behavior_node = launch_signal_node
     return behavior
-
-
-def no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=True):
-    if collect_data:
-        sim_data = SimulationData(world)
-    else:
-        sim_data = None
-
-    def run(ticks, with_bots):
-        for tick in range(ticks):
-            world.step()
-            # Keep track of some info for graphing
-            if sim_data:
-                sim_data.poll_world_for_data()
-            if with_bots and len(world.bots) == 0:
-                print("Stopping %s ticks in since no more bots." % tick)
-                return
-            if tick % 100 == 0:
-                print(" Finished Tick %d / %d" % (tick, ticks))
-
-    center = world.boundary_sizes[0]/2, world.boundary_sizes[1]/2
-    world.add_entity(Plant(center[0], center[1]))
-    world.give_energy_to_entity(5, world.plants[0])
-    print("Running %s ticks with just plants..." % plant_growth_ticks)
-    run(plant_growth_ticks, with_bots=False)
-    behavior = create_basic_intelligence()
-    world.add_entity(Bot(center[0], center[1], behavior))
-    world.give_energy_to_entity(300, world.bots[0])
-    print("Running %s ticks with bots added..." % additional_ticks)
-    run(additional_ticks, with_bots=True)
-    if sim_data:
-        sim_data.save_metrics()
 
 
 class SimulationData:
@@ -383,13 +381,15 @@ class SimulationData:
             plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
 
 
-class GraphicalSimulation:
-    def __init__(self, world, plant_ticks, collect_data=True, fps=20, scale=2, random_bots=False):
+class Simulation:
+    def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy, collect_data=True,
+                 fps=20, scale=2, default_behavior=None):
         # Set an environment variable to center the pygame screen
+        # TODO: Move display stuff into the View
+        self.world = world
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         self.clock = pygame.time.Clock()
-        self.world = world
         if world.boundary_sizes:
             window_width, window_height = world.boundary_sizes
         else:
@@ -399,46 +399,25 @@ class GraphicalSimulation:
         window_width, window_height = scale * window_width, scale * window_height
         window = pygame.display.set_mode((window_width, window_height), pygame.DOUBLEBUF)
         pygame.display.set_caption('NSS')
+        paused = False
         running = 1
         tick = 0
-        # Run the simulation to get plants spread out
-        if self.world.boundary_sizes:
-            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1]))
-        else:
-            self.world.add_entity(Plant(screen_width//2, screen_height//2))
-        world.give_energy_to_entity(5, world.plants[0])
         if collect_data:
             sim_data = SimulationData(self.world)
         else:
             sim_data = None
-        for i in range(plant_ticks):
+        if self.world.boundary_sizes:
+            self.world.add_entity(Plant(self.world.half_boundaries[0], self.world.half_boundaries[1]))
+        else:
+            self.world.add_entity(Plant(0, 0))
+        self.world.give_energy_to_entity(5, self.world.plants[0])
+        print("Running %s ticks with just plants..." % plant_growth_ticks)
+        for i in range(plant_growth_ticks):
             self.world.step()
             if sim_data:
                 sim_data.poll_world_for_data()
-        # Add a bot and display the simulation
-        if random_bots:
-            number_of_random_bots = 500
-            for bot in range(0, number_of_random_bots):
-                behavior = BehaviorGraph()
-                behavior.generate_random_graph(8)
-                if self.world.boundary_sizes:
-                    x = randint(0, self.world.boundary_sizes[0])
-                    y = randint(0, self.world.boundary_sizes[1])
-                else:
-                    x = randint(0, 100)
-                    y = randint(0, 100)
-                bot = Bot(x, y, behavior_graph=behavior)
-                self.world.give_energy_to_entity(250, bot)
-                self.world.add_entity(bot)
-        else:
-            behavior = create_basic_intelligence()
-            if self.world.boundary_sizes:
-                bot = Bot(self.world.half_boundaries[0], self.world.half_boundaries[1], behavior)
-            else:
-                bot = Bot(screen_width//2, screen_height//2, behavior)
-            self.world.give_energy_to_entity(250, bot)
-            self.world.add_entity(bot)
-        paused = False
+        print("Adding bots...")
+        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
         # TODO: Account for paused time in the SimulationData results
         while running:
             for event in pygame.event.get():
@@ -457,11 +436,13 @@ class GraphicalSimulation:
                     sim_data.poll_world_for_data()
                 # Draw the plants and bots
                 pixels = pygame.surfarray.pixels3d(screen)
-                for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (150, 40, 150))]:
+                for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
                     for entity in entity_list:
                         if 0 <= entity.x < screen_width and 0 <= entity.y < screen_height:
+                            if isinstance(entity, Plant):
+                                ratio = entity.energy/entity.max_energy
+                                color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
                             pixels[entity.x][entity.y] = color
-                        # pygame.draw.ellipse(screen, color, (x, y, 1, 1))
                 del pixels
                 screen.lock()
                 for signal in self.world.signals:
@@ -486,17 +467,8 @@ class GraphicalSimulation:
             sim_data.save_metrics()
         pygame.quit()
 
-
-def run_simulation(world, plant_growth_ticks, additional_ticks, graphics=False, collect_data=True,
-                   fps=20, scale=2, random_bots=False):
-    if graphics:
-        GraphicalSimulation(world, plant_growth_ticks, collect_data=collect_data,
-                            fps=fps, scale=scale, random_bots=random_bots)
-    else:
-        no_graphics_run(world, plant_growth_ticks, additional_ticks, collect_data=collect_data)
-
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
-    # TODO: Create a Simulation and SimulationParameters class
-    run_simulation(earth, 500, 5000, graphics=True, fps=60, scale=2, random_bots=False)
+    start_behavior = create_basic_intelligence()
+    Simulation(earth, 500, 500, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
