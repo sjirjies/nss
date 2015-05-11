@@ -394,6 +394,34 @@ class SimulationData:
             plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
 
 
+class ViewPort:
+    def __init__(self, world, width, height):
+        self.world = world
+        self.surface_width = width
+        self.surface_height = height
+        self.surface = pygame.Surface((width, height))
+
+    def render(self):
+        self.surface.fill((0, 0, 0))
+        pixels = pygame.surfarray.pixels3d(self.surface)
+        for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
+            for entity in entity_list:
+                if 0 <= entity.x < self.surface_width and 0 <= entity.y < self.surface_height:
+                    if isinstance(entity, Plant):
+                        ratio = entity.energy/entity.max_energy
+                        color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
+                    pixels[entity.x][entity.y] = color
+        del pixels
+        self.surface.lock()
+        for signal in self.world.signals:
+            diameter = signal.diameter
+            left = signal.x - (diameter/2)
+            top = signal.y - (diameter/2)
+            signal_color = signal.color if signal.color else (75, 75, 75)
+            pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
+        self.surface.unlock()
+
+
 class Simulation:
     def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy, collect_data=True,
                  fps=20, scale=2, default_behavior=None):
@@ -404,17 +432,16 @@ class Simulation:
         pygame.init()
         self.clock = pygame.time.Clock()
         if world.boundary_sizes:
-            window_width, window_height = world.boundary_sizes
+            view_port_width, view_port_height = world.boundary_sizes
             # window_width += 60
         else:
-            window_width, window_height = 250, 250
-        self.surface = pygame.Surface((window_width, window_height))
-        self.surface_width, self.surface_height = self.surface.get_width(), self.surface.get_height()
-        self.window_width, self.window_height = scale * window_width, scale * window_height
-        self.window = pygame.display.set_mode((window_width, window_height), pygame.DOUBLEBUF)
+            view_port_width, view_port_height = 300, 300
+        self.view_port = ViewPort(self.world, view_port_width, view_port_height)
+        self.window_width, self.window_height = scale * view_port_width, scale * view_port_height
+        self.window = pygame.display.set_mode((self.window_width, self.window_height), pygame.DOUBLEBUF)
         pygame.display.set_caption('NSS')
         self.paused = False
-        self.running = 1
+        self.running = True
         self.tick = 0
         self.scale = scale
         self.fps = fps
@@ -465,28 +492,12 @@ class Simulation:
                 self.paused = False if self.paused else True
 
     def draw_graphics(self):
-        self.surface.fill((0, 0, 0))
-        pixels = pygame.surfarray.pixels3d(self.surface)
-        for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
-            for entity in entity_list:
-                if 0 <= entity.x < self.surface_width and 0 <= entity.y < self.surface_height:
-                    if isinstance(entity, Plant):
-                        ratio = entity.energy/entity.max_energy
-                        color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    pixels[entity.x][entity.y] = color
-        del pixels
-        self.surface.lock()
-        for signal in self.world.signals:
-            diameter = signal.diameter
-            left = signal.x - (diameter/2)
-            top = signal.y - (diameter/2)
-            signal_color = signal.color if signal.color else (75, 75, 75)
-            pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
-        self.surface.unlock()
+        self.view_port.render()
+        # Draw the views to the window
         if self.scale > 1:
-            pygame.transform.scale(self.surface, (self.window_width, self.window_height), self.window)
+            pygame.transform.scale(self.view_port.surface, (self.window_width, self.window_height), self.window)
         else:
-            self.window.blit(self.surface, (0, 0))
+            self.window.blit(self.view_port.surface, (0, 0))
 
     def seed_plants(self, plant_growth_ticks):
         if self.world.boundary_sizes:
@@ -509,4 +520,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
