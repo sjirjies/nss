@@ -171,6 +171,13 @@ class World:
         return x_diff, y_diff
 
     def populate(self, number_bots, bot_energy, default_behavior=None, behavior_size=8):
+        if self.energy_pool is not None:
+            if bot_energy * number_bots < self.energy_pool:
+                print("World has %d free energy, enough to seed with %d bots with %d energy each." %
+                      (int(self.energy_pool), int(self.energy_pool//bot_energy), bot_energy))
+            if self.energy_pool < bot_energy:
+                print("Not enough free energy for even a single bot.")
+                return False
         # Populate the world with bots
         for bot in range(0, number_bots):
             if not default_behavior:
@@ -185,8 +192,11 @@ class World:
                 x = randint(0, 100)
                 y = randint(0, 100)
             bot = Bot(x, y, behavior_graph=behavior)
-            self.give_energy_to_entity(bot_energy, bot)
+            if self.energy_pool is not None and self.energy_pool < bot_energy:
+                break
             self.add_entity(bot)
+            self.give_energy_to_entity(bot_energy, bot)
+        return True
 
 
 def create_basic_intelligence():
@@ -433,7 +443,7 @@ class Simulation:
             self.clock.tick(self.fps)
             # If we have no more entities then end the simulation
             if len(self.world.bots) == 0 or len(self.world.all_entities) == 0:
-                print("Ending because of lack of bots")
+                print("Ending because all bots have died off.")
                 self.running = False
         self.exit()
 
