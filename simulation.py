@@ -400,26 +400,39 @@ class ViewPort:
         self.surface_width = width
         self.surface_height = height
         self.surface = pygame.Surface((width, height))
+        self.camera_x = 0
+        self.camera_y = 0
+        self.zoom = 1
 
     def render(self):
         self.surface.fill((0, 0, 0))
         pixels = pygame.surfarray.pixels3d(self.surface)
         for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
             for entity in entity_list:
-                if 0 <= entity.x < self.surface_width and 0 <= entity.y < self.surface_height:
+                # Make sure the entity is visible in the camera before bothering with rendering it
+                # TODO: change this to work with zooms, include camera width and height
+                if self.camera_x <= entity.x < self.surface_width + self.camera_x \
+                        and self.camera_y <= entity.y < self.surface_height + self.camera_y:
                     if isinstance(entity, Plant):
                         ratio = entity.energy/entity.max_energy
                         color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    pixels[entity.x][entity.y] = color
+                    pixels[entity.x-self.camera_x][entity.y-self.camera_y] = color
         del pixels
         self.surface.lock()
         for signal in self.world.signals:
             diameter = signal.diameter
-            left = signal.x - (diameter/2)
-            top = signal.y - (diameter/2)
+            left = signal.x - (diameter/2) - self.camera_x
+            top = signal.y - (diameter/2) - self.camera_y
             signal_color = signal.color if signal.color else (75, 75, 75)
             pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
         self.surface.unlock()
+
+    def move_camera_to_coordinates(self, x, y):
+        self.camera_x, self.camera_y = x, y
+
+    def move_camera_by_vector(self, dx, dy):
+        self.camera_x += dx
+        self.camera_y += dy
 
 
 class Simulation:
@@ -485,11 +498,22 @@ class Simulation:
             # Let the user quick the simulation
             if event.type == pygame.QUIT:
                 self.running = 0
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.running = 0
-            # Let the user pause the simulation
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                self.paused = False if self.paused else True
+            elif event.type == pygame.KEYDOWN:
+                key = event.key
+                if key == pygame.K_ESCAPE:
+                    self.running = 0
+                # Let the user pause the simulation
+                elif key == pygame.K_SPACE:
+                    self.paused = False if self.paused else True
+                # Let the user control the camera using arrow keys
+                elif key == pygame.K_LEFT:
+                    self.view_port.move_camera_by_vector(-10, 0)
+                elif key == pygame.K_RIGHT:
+                    self.view_port.move_camera_by_vector(10, 0)
+                elif key == pygame.K_UP:
+                    self.view_port.move_camera_by_vector(0, -10)
+                elif key == pygame.K_DOWN:
+                    self.view_port.move_camera_by_vector(0, 10)
 
     def draw_graphics(self):
         self.view_port.render()
