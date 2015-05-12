@@ -173,11 +173,14 @@ class World:
     def populate(self, number_bots, bot_energy, default_behavior=None, behavior_size=8):
         if self.energy_pool is not None:
             if bot_energy * number_bots < self.energy_pool:
-                print("World has %d free energy, enough to seed with %d bots with %d energy each." %
+                print("World has %d free energy, enough to seed with %d bots each with %d energy." %
                       (int(self.energy_pool), int(self.energy_pool//bot_energy), bot_energy))
             if self.energy_pool < bot_energy:
                 print("Not enough free energy for even a single bot.")
-                return False
+                print("Deleting food until there in enough free energy.")
+                while (10 * bot_energy) > self.energy_pool:
+                    plant = self.plants.pop()
+                    self.energy_pool += plant.energy
         # Populate the world with bots
         for bot in range(0, number_bots):
             if not default_behavior:
@@ -435,6 +438,68 @@ class ViewPort:
         self.camera_y += dy
 
 
+class InfoPanel:
+    def __init__(self, world, width, height):
+        self.surface = pygame.Surface((width, height))
+        self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
+        self.width, self.height = width, height
+        self.world = world
+        self.labels_map = self._position_labels()
+        self._position_labels()
+        self.writer = self.TextWriter('nss_font.png', 8, 1)
+        self.bg_color = (10, 10, 10)
+
+    def _position_labels(self):
+        x = 5
+        y = 22
+        return [("-Info-", (x, 0)), ("Tick", (x, y)), ("Free Energy", (x, y*2)),
+                ("Plants", (x, y*3)), ("Bots", (x, y*4)), ("Signals", (x, y*5))]
+
+    def render(self):
+        color = (255, 255, 255)
+        data = self.poll_data()
+        self.surface.fill(self.bg_color)
+        for index, pair in enumerate(self.labels_map):
+            label, pos = pair
+            # label_surface = self.writer.get_text_surface(label)
+            label_surface = self.font.render(label, 0, color)
+            self.surface.blit(label_surface, pos)
+            if index > 0:
+                # amount_surface = self.writer.get_text_surface(str(data[index-1]))
+                amount_surface = self.font.render(str(data[index-1]), 0, color)
+                self.surface.blit(amount_surface, (15, pos[1]+11))
+
+    def poll_data(self):
+        data = []
+        data.append(self.world.tick_number)
+        if self.world.energy_pool is not None:
+            data.append(self.world.energy_pool)
+        else:
+            data.append("Unlimited")
+        data.append(len(self.world.plants))
+        data.append(len(self.world.bots))
+        data.append(len(self.world.signals))
+        return data
+
+    class TextWriter:
+        def __init__(self, filename, text_width, gap):
+            self.font_surface = pygame.image.load(os.getcwd() + os.sep + filename)
+            self.char_height = self.font_surface.get_height()
+            self.char_width = text_width
+            self.char_surface_gap = gap
+            self.char_map = {}
+            for i in range(32, 127):
+                index = i-32
+                self.char_map[chr(i)] = ((index * self.char_width) + index, 0, self.char_width, self.char_height)
+
+        def get_text_surface(self, text):
+            chars_surface = pygame.Surface(((len(text) * self.char_width) + len(text), self.char_height),
+                                           depth=self.font_surface)
+            for i, char in enumerate(text):
+                chars_surface.blit(self.font_surface, ((i * self.char_width) + i, 0, 8, 8), self.char_map[char])
+            return chars_surface
+
+
 class Simulation:
     def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy, collect_data=True,
                  fps=20, scale=2, default_behavior=None):
@@ -444,13 +509,18 @@ class Simulation:
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         self.clock = pygame.time.Clock()
+        # Set up the different views
         if world.boundary_sizes:
             view_port_width, view_port_height = world.boundary_sizes
-            # window_width += 60
         else:
             view_port_width, view_port_height = 300, 300
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
-        self.window_width, self.window_height = scale * view_port_width, scale * view_port_height
+        self.info_panel = InfoPanel(self.world, 70, 300)
+        main_surface_width = view_port_width + self.info_panel.width
+        main_surface_height = view_port_height
+        self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
+        self.window_width, self.window_height = scale * main_surface_width, scale * main_surface_height
+        # Create the simulation window
         self.window = pygame.display.set_mode((self.window_width, self.window_height), pygame.DOUBLEBUF)
         pygame.display.set_caption('NSS')
         self.paused = False
@@ -465,7 +535,7 @@ class Simulation:
         self.seed_plants(plant_growth_ticks)
         # Populate the world with bots
         print("Adding bots...")
-        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
+        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=12)
         # TODO: Account for paused time in the SimulationData results
         # Create a mouse handler and enter mainloop
         self.mouse = self.MouseHandler(self.scale)
@@ -479,8 +549,8 @@ class Simulation:
                 self.world.step()
                 # Collect Data if enabled
                 self.collect_data()
-                self.draw_graphics()
                 self.tick += 1
+            self.draw_graphics()
             pygame.display.update()
             self.clock.tick(self.fps)
             # If we have no more entities then end the simulation
@@ -496,6 +566,7 @@ class Simulation:
             self.data_collector.save_metrics()
 
     def handle_user_input(self):
+        # TODO: Add check to find out which view the user clicked inside
         for event in pygame.event.get():
             # Let the user quick the simulation
             if event.type == pygame.QUIT:
@@ -526,18 +597,27 @@ class Simulation:
                 # left, middle, right = pygame.mouse.get_pressed()
                 if self.mouse.holding:
                     move = pygame.mouse.get_rel()
-                    self.view_port.move_camera_by_vector(move[0], move[1])
+                    self.view_port.move_camera_by_vector(-move[0], -move[1])
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
 
     def draw_graphics(self):
+        # Draw the various views to the window
         self.view_port.render()
-        # Draw the views to the window
+        self.info_panel.render()
+        self.main_surface.blit(self.view_port.surface, (0, 0))
+        self.main_surface.blit(self.info_panel.surface, (self.view_port.surface_width, 0))
+        # Draw a line separating the view port from the info view
+        line_start = (self.view_port.surface_width, 0)
+        line_end = (self.view_port.surface_width, self.info_panel.height)
+        pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
+        final_surface = self.main_surface
         if self.scale > 1:
-            pygame.transform.scale(self.view_port.surface, (self.window_width, self.window_height), self.window)
-        else:
-            self.window.blit(self.view_port.surface, (0, 0))
+            width, height = self.main_surface.get_width() * self.scale, self.main_surface.get_height() * self.scale
+            final_surface = pygame.Surface((width, height))
+            pygame.transform.scale(self.main_surface, (width, height), final_surface)
+        self.window.blit(final_surface, (0, 0))
 
     def seed_plants(self, plant_growth_ticks):
         if self.world.boundary_sizes:
@@ -592,4 +672,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
+    Simulation(earth, 300, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=start_behavior)
