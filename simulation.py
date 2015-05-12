@@ -467,6 +467,8 @@ class Simulation:
         print("Adding bots...")
         self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
         # TODO: Account for paused time in the SimulationData results
+        # Create a mouse handler and enter mainloop
+        self.mouse = self.MouseHandler(self.scale)
         self.mainloop()
 
     def mainloop(self):
@@ -514,6 +516,20 @@ class Simulation:
                     self.view_port.move_camera_by_vector(0, -10)
                 elif key == pygame.K_DOWN:
                     self.view_port.move_camera_by_vector(0, 10)
+            # Handle mouse control
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.mouse.set_click(event.pos)
+                    pygame.mouse.get_rel()
+            elif event.type == pygame.MOUSEMOTION:
+                self.mouse.set_position(pygame.mouse.get_pos())
+                # left, middle, right = pygame.mouse.get_pressed()
+                if self.mouse.holding:
+                    move = pygame.mouse.get_rel()
+                    self.view_port.move_camera_by_vector(move[0], move[1])
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.mouse.set_release(event.pos)
 
     def draw_graphics(self):
         self.view_port.render()
@@ -539,6 +555,38 @@ class Simulation:
     def collect_data(self):
         if self.data_collector:
             self.data_collector.poll_world_for_data()
+
+    class MouseHandler:
+        def __init__(self, scale):
+            self.scale = scale
+            self.pos = (0, 0)
+            self.holding = False
+            self.hold_time = 0
+            self.click_coordinates = (0, 0)
+            self.release_coordinates = (0, 0)
+            self.click_time = 0
+
+        def _scale_coordinates(self, pos):
+            return pos[0]//self.scale, pos[1]//self.scale
+
+        def set_click(self, pos):
+            self.click_coordinates = self._scale_coordinates(pos)
+            self.hold_time = 0
+            self.click_time = time.time()
+            self.holding = True
+
+        def set_release(self, pos):
+            self.release_coordinates = self._scale_coordinates(pos)
+            self.hold_time = time.time() - self.click_time
+            self.holding = False
+
+        def set_position(self, pos):
+            self.pos = self._scale_coordinates(pos)
+
+        def get_drag_vector(self):
+            dx = self.release_coordinates[0] - self.click_coordinates[0]
+            dy = self.release_coordinates[1] - self.click_coordinates[1]
+            # TODO: Finish this method
 
 if __name__ == '__main__':
     print("Starting Simulation...")
