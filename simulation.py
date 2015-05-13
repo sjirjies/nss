@@ -598,6 +598,8 @@ class Simulation:
                     self.view_port.move_camera_by_vector(0, -10)
                 elif key == pygame.K_DOWN:
                     self.view_port.move_camera_by_vector(0, 10)
+                elif key == pygame.K_0:
+                    self.view_port.move_camera_to_coordinates(0, 0)
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
