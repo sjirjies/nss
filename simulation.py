@@ -352,7 +352,6 @@ class SimulationData:
                       self.world.tick_number, world_width, world_height, bot_limit, plant_limit, energy_pool,
                       round(time.time() - self.start_time, 1), today, hour_min)
             writer.writerow(dict(zip(self.fieldnames, values)))
-        # TODO: Replace the text output with a visual graph using something like NetworkX http://networkx.github.io/
         self.save_bot_intelligence(best)
 
     def save_bot_intelligence(self, bot):
@@ -439,34 +438,34 @@ class ViewPort:
 
 
 class InfoPanel:
-    def __init__(self, world, width, height):
+    def __init__(self, world, width, height, text_color, bg_color):
+        self.text_color = text_color
         self.surface = pygame.Surface((width, height))
         self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
         self.world = world
         self.labels_map = self._position_labels()
         self._position_labels()
-        self.writer = self.TextWriter('nss_font.png', 8, 1)
-        self.bg_color = (10, 10, 10)
+        self.writer = self.TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
+        self.bg_color = bg_color
 
     def _position_labels(self):
         x = 5
         y = 22
-        return [("-Info-", (x, 0)), ("Tick", (x, y)), ("Free Energy", (x, y*2)),
+        return [("Metrics", (x, x)), ("Tick", (x, y)), ("Free Energy", (x, y*2)),
                 ("Plants", (x, y*3)), ("Bots", (x, y*4)), ("Signals", (x, y*5))]
 
     def render(self):
-        color = (255, 255, 255)
         data = self.poll_data()
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
-            # label_surface = self.writer.get_text_surface(label)
-            label_surface = self.font.render(label, 0, color)
+            label_surface = self.writer.get_text_surface(label, self.text_color)
+            # label_surface = self.font.render(label, 0, color)
             self.surface.blit(label_surface, pos)
             if index > 0:
-                # amount_surface = self.writer.get_text_surface(str(data[index-1]))
-                amount_surface = self.font.render(str(data[index-1]), 0, color)
+                amount_surface = self.writer.get_text_surface(str(data[index-1]), self.text_color)
+                # amount_surface = self.font.render(str(data[index-1]), 0, color)
                 self.surface.blit(amount_surface, (15, pos[1]+11))
 
     def poll_data(self):
@@ -482,21 +481,33 @@ class InfoPanel:
         return data
 
     class TextWriter:
-        def __init__(self, filename, text_width, gap):
+        def __init__(self, filename, char_width, char_height, border_gap, chars_per_row):
             self.font_surface = pygame.image.load(os.getcwd() + os.sep + filename)
-            self.char_height = self.font_surface.get_height()
-            self.char_width = text_width
-            self.char_surface_gap = gap
+            self.char_height = char_height
+            self.char_width = char_width
+            self.char_border = border_gap
+            self.chars_per_row = chars_per_row
             self.char_map = {}
-            for i in range(32, 127):
-                index = i-32
-                self.char_map[chr(i)] = ((index * self.char_width) + index, 0, self.char_width, self.char_height)
+            for i in range(32, 128):
+                char_index = i-32
+                row = char_index // self.chars_per_row
+                col = char_index % self.chars_per_row
+                x_coord = (self.char_border * (col + 1)) + (col * self.char_width)
+                y_coord = (self.char_border * (row + 1)) + (row * self.char_height)
+                self.char_map[chr(i)] = ((x_coord, y_coord, self.char_width, self.char_height))
 
-        def get_text_surface(self, text):
+        def get_text_surface(self, text, text_color):
             chars_surface = pygame.Surface(((len(text) * self.char_width) + len(text), self.char_height),
                                            depth=self.font_surface)
             for i, char in enumerate(text):
-                chars_surface.blit(self.font_surface, ((i * self.char_width) + i, 0, 8, 8), self.char_map[char])
+                if char in self.char_map:
+                    rect = self.char_map[char]
+                else:
+                    rect = self.char_map[chr(127)]
+                chars_surface.blit(self.font_surface, ((i * self.char_width) + i, 0,
+                                                       self.char_width, self.char_height), rect)
+            pixel_array = pygame.PixelArray(chars_surface)
+            pixel_array.replace((0, 0, 0), text_color)
             return chars_surface
 
 
@@ -515,7 +526,7 @@ class Simulation:
         else:
             view_port_width, view_port_height = 300, 300
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
-        self.info_panel = InfoPanel(self.world, 70, 300)
+        self.info_panel = InfoPanel(self.world, 75, 300, (220, 220, 220), (10, 10, 10))
         main_surface_width = view_port_width + self.info_panel.width
         main_surface_height = view_port_height
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
@@ -605,6 +616,12 @@ class Simulation:
     def draw_graphics(self):
         # Draw the various views to the window
         self.view_port.render()
+        # Draw a red "Paused" box around the view port if the simulation is paused
+        if self.paused:
+            thick = 1
+            view = self.view_port.surface
+            pygame.draw.rect(view, (200, 50, 50),
+                             (0, 0, view.get_width()-(thick//2), view.get_height()-(thick//2)), thick)
         self.info_panel.render()
         self.main_surface.blit(self.view_port.surface, (0, 0))
         self.main_surface.blit(self.info_panel.surface, (self.view_port.surface_width, 0))
@@ -672,4 +689,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=100000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 300, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=start_behavior)
+    Simulation(earth, 300, 100, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
