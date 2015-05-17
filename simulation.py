@@ -407,27 +407,41 @@ class ViewPort:
         self.camera_y = 0
         self.zoom = 1
 
+    def zoom_in(self):
+        self.zoom += 1
+
+    def zoom_out(self):
+        if self.zoom >= 2:
+            self.zoom -= 1
+
     def render(self):
         self.surface.fill((0, 0, 0))
         pixels = pygame.surfarray.pixels3d(self.surface)
         for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
             for entity in entity_list:
                 # Make sure the entity is visible in the camera before bothering with rendering it
+                entity_in_camera_x = self.camera_x <= entity.x < (self.surface_width / self.zoom) + self.camera_x
+                entity_in_camera_y = self.camera_y <= entity.y < (self.surface_height / self.zoom) + self.camera_y
+
                 # TODO: change this to work with zooms, include camera width and height
-                if self.camera_x <= entity.x < self.surface_width + self.camera_x \
-                        and self.camera_y <= entity.y < self.surface_height + self.camera_y:
+                if entity_in_camera_x and entity_in_camera_y:
                     if isinstance(entity, Plant):
                         ratio = entity.energy/entity.max_energy
                         color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    pixels[entity.x-self.camera_x][entity.y-self.camera_y] = color
+                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = color
         del pixels
         self.surface.lock()
         for signal in self.world.signals:
-            diameter = signal.diameter
-            left = signal.x - (diameter/2) - self.camera_x
-            top = signal.y - (diameter/2) - self.camera_y
-            signal_color = signal.color if signal.color else (75, 75, 75)
-            pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
+            # Make sure the signal is visible in the view before rendering it
+            signal_in_camera_x = self.camera_x <= signal.x < (self.surface_width / self.zoom) + self.camera_x
+            signal_in_camera_y = self.camera_y <= signal.y < (self.surface_height / self.zoom) + self.camera_y
+
+            if signal_in_camera_x and signal_in_camera_y:
+                diameter = signal.diameter * self.zoom
+                left = (signal.x * self.zoom) - (diameter/2) - self.camera_x
+                top = (signal.y * self.zoom) - (diameter/2) - self.camera_y
+                signal_color = signal.color if signal.color else (75, 75, 75)
+                pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
         self.surface.unlock()
 
     def move_camera_to_coordinates(self, x, y):
@@ -617,6 +631,10 @@ class Simulation:
                 if event.button == 1:
                     self.mouse.set_click(event.pos)
                     pygame.mouse.get_rel()
+                elif event.button == 5:
+                    self.view_port.zoom_out()
+                elif event.button == 4:
+                    self.view_port.zoom_in()
             elif event.type == pygame.MOUSEMOTION:
                 self.mouse.set_position(pygame.mouse.get_pos())
                 # left, middle, right = pygame.mouse.get_pressed()
