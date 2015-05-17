@@ -437,11 +437,11 @@ class ViewPort:
             signal_in_camera_y = self.camera_y <= signal.y < (self.surface_height / self.zoom) + self.camera_y
 
             if signal_in_camera_x and signal_in_camera_y:
-                diameter = signal.diameter * self.zoom
-                left = (signal.x * self.zoom) - (diameter/2) - self.camera_x
-                top = (signal.y * self.zoom) - (diameter/2) - self.camera_y
+                diameter = signal.diameter
+                left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
+                top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
                 signal_color = signal.color if signal.color else (75, 75, 75)
-                pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter, diameter), 1)
+                pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         self.surface.unlock()
 
     def move_camera_to_coordinates(self, x, y):
@@ -450,6 +450,11 @@ class ViewPort:
     def move_camera_by_vector(self, dx, dy):
         self.camera_x += dx
         self.camera_y += dy
+
+    def get_center_offset(self):
+        dx = (self.surface_width / (self.zoom + 1)) - self.camera_x
+        dy = (self.surface_height / (self.zoom + 1)) - self.camera_y
+        return dx, dy
 
 
 class InfoPanel:
@@ -626,6 +631,7 @@ class Simulation:
                     self.view_port.move_camera_by_vector(0, 10)
                 elif key == pygame.K_0:
                     self.view_port.move_camera_to_coordinates(0, 0)
+                    self.view_port.zoom = 1
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -633,14 +639,20 @@ class Simulation:
                     pygame.mouse.get_rel()
                 elif event.button == 5:
                     self.view_port.zoom_out()
+                    #dx, dy = self.view_port.get_center_offset()
+                    #self.view_port.move_camera_by_vector(-dx, -dy)
                 elif event.button == 4:
                     self.view_port.zoom_in()
+                    #dx, dy = self.view_port.get_center_offset()
+                    #self.view_port.move_camera_by_vector(dx, dy)
             elif event.type == pygame.MOUSEMOTION:
                 self.mouse.set_position(pygame.mouse.get_pos())
                 # left, middle, right = pygame.mouse.get_pressed()
                 if self.mouse.holding:
                     move = pygame.mouse.get_rel()
-                    self.view_port.move_camera_by_vector(-move[0], -move[1])
+                    offset_x = -move[0] / self.view_port.zoom
+                    offset_y = -move[1] / self.view_port.zoom
+                    self.view_port.move_camera_by_vector(offset_x, offset_y)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
@@ -721,4 +733,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=150000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=None)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=start_behavior)
