@@ -5,6 +5,7 @@ import matplotlib.gridspec as gridspec
 import csv
 import time
 import pygame
+from datetime import timedelta
 from scipy.spatial import cKDTree
 
 from sim_entities import *
@@ -438,12 +439,14 @@ class ViewPort:
 
 
 class InfoPanel:
-    def __init__(self, world, width, height, text_color, bg_color):
+    def __init__(self, world, clock, width, height, text_color, bg_color):
         self.text_color = text_color
+        self.start_time = time.time()
         self.surface = pygame.Surface((width, height))
         self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
         self.world = world
+        self.clock = clock
         self.labels_map = self._position_labels()
         self._position_labels()
         self.writer = self.TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
@@ -452,8 +455,14 @@ class InfoPanel:
     def _position_labels(self):
         x = 5
         y = 22
-        return [("Metrics", (x, x)), ("Tick", (x, y)), ("Free Energy", (x, y*2)),
-                ("Plants", (x, y*3)), ("Bots", (x, y*4)), ("Signals", (x, y*5))]
+        labels = ["Tick", "Time", "FPS", "Free Energy", "Plants", "Bots", "Signals"]
+        positions = []
+        for index, label in enumerate(labels):
+            positions.append((label, (x, (index+1)*y)))
+        positions.insert(0, ("Metrics", (x, x)))
+
+        return positions
+
 
     def render(self):
         data = self.poll_data()
@@ -471,6 +480,9 @@ class InfoPanel:
     def poll_data(self):
         data = []
         data.append(self.world.tick_number)
+        seconds = int(time.time() - self.start_time)
+        data.append(str(timedelta(seconds=seconds)))
+        data.append(round(self.clock.get_fps(), 2))
         if self.world.energy_pool is not None:
             data.append(self.world.energy_pool)
         else:
@@ -526,7 +538,7 @@ class Simulation:
         else:
             view_port_width, view_port_height = 300, 300
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
-        self.info_panel = InfoPanel(self.world, 75, 300, (220, 220, 220), (10, 10, 10))
+        self.info_panel = InfoPanel(self.world, self.clock, 75, 300, (220, 220, 220), (10, 10, 10))
         main_surface_width = view_port_width + self.info_panel.width
         main_surface_height = view_port_height
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
@@ -689,6 +701,6 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=100000)
+    earth = World(boundary_sizes=(250, 250), energy_pool=150000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 300, 100, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=None)
