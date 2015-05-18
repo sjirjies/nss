@@ -463,7 +463,7 @@ class ViewPort:
     def point_to_world(self, point):
         world_x = (point[0] / self.zoom) + self.camera_x
         world_y = (point[1] / self.zoom) + self.camera_y
-        print(world_x, world_y)
+        return world_x, world_y
 
 
 class InfoPanel:
@@ -612,8 +612,17 @@ class Simulation:
 
         elif self.mouse.mode == "bot-select":
             if self.mouse.mouse_button == 1:
-                self.view_port.point_to_world(self.mouse.pos)
-                #print("bot selected")
+                world_point = self.view_port.point_to_world(self.mouse.pos)
+                distances, indexes = self.world.kd_tree.query(world_point, k=10)
+                nearest_bot = None
+                for distance, index in zip(distances, indexes):
+                    entity = self.world.all_entities[index]
+                    if isinstance(entity, Bot):
+                        nearest_bot = entity
+
+                if nearest_bot:
+                    print(nearest_bot)
+
 
 
     def mainloop(self):
