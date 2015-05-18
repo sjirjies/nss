@@ -27,6 +27,8 @@ import behavior_functions
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
         self.tick_number = 0
+        self.start_time = time.time()
+        self.time = time.time()
         self.bots = []
         self.plants = []
         self.signals = []
@@ -43,6 +45,7 @@ class World:
         self.recently_dead_bots = []
 
     def step(self):
+        self.time = time.time() - self.start_time
         self.tick_number += 1
         self.recently_dead_bots = []
         # Update the list of all entities
@@ -234,6 +237,7 @@ def create_basic_intelligence():
 
 class SimulationData:
     def __init__(self, world):
+        # TODO: Get time from world
         self.start_time = time.time()
         self.world = world
         self.plant_numbers = []
@@ -460,7 +464,6 @@ class ViewPort:
 class InfoPanel:
     def __init__(self, world, clock, width, height, text_color, bg_color):
         self.text_color = text_color
-        self.start_time = time.time()
         self.surface = pygame.Surface((width, height))
         self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
@@ -482,7 +485,6 @@ class InfoPanel:
 
         return positions
 
-
     def render(self):
         data = self.poll_data()
         self.surface.fill(self.bg_color)
@@ -499,7 +501,7 @@ class InfoPanel:
     def poll_data(self):
         data = []
         data.append(self.world.tick_number)
-        seconds = int(time.time() - self.start_time)
+        seconds = int(self.world.time)
         data.append(str(timedelta(seconds=seconds)))
         data.append(round(self.clock.get_fps(), 2))
         if self.world.energy_pool is not None:
@@ -560,6 +562,8 @@ class Simulation:
         self.info_panel = InfoPanel(self.world, self.clock, 75, 300, (220, 220, 220), (10, 10, 10))
         main_surface_width = view_port_width + self.info_panel.width
         main_surface_height = view_port_height
+        self.view_port_position = ((0, 0), (self.view_port.surface_width, self.view_port.surface_height))
+        self.info_panel_position = ((self.view_port.surface_width, 0), (self.info_panel.width, self.info_panel.height))
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
         self.window_width, self.window_height = scale * main_surface_width, scale * main_surface_height
         # Create the simulation window
@@ -583,9 +587,28 @@ class Simulation:
         self.mouse = self.MouseHandler(self.scale)
         self.mainloop()
 
+    def handle_mouse_input(self):
+        if self.mouse.holding:
+            if self.mouse.in_rectangle(self.view_port_position):
+                print("In main view port")
+            if self.mouse.in_rectangle(self.info_panel_position):
+                print("In info panel")
+        if self.mouse.mouse_button == 5:
+            self.view_port.zoom_out()
+        elif self.mouse.mouse_button == 4:
+            self.view_port.zoom_in()
+
+        # left, middle, right = pygame.mouse.get_pressed()
+        if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
+            move = self.mouse.get_instant_diff()
+            offset_x = -move[0] / self.view_port.zoom
+            offset_y = -move[1] / self.view_port.zoom
+            self.view_port.move_camera_by_vector(offset_x, offset_y)
+
     def mainloop(self):
         while self.running:
             self.handle_user_input()
+            self.handle_mouse_input()
             # Update the world
             if not self.paused:
                 self.world.step()
@@ -608,6 +631,9 @@ class Simulation:
             self.data_collector.save_metrics()
 
     def handle_user_input(self):
+        self.mouse.mouse_button = None
+        self.mouse.mouse_motion = False
+        self.mouse.button_pressed = (0, 0, 0)
         # TODO: Add check to find out which view the user clicked inside
         for event in pygame.event.get():
             # Let the user quick the simulation
@@ -634,25 +660,13 @@ class Simulation:
                     self.view_port.zoom = 1
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                self.mouse.mouse_button = event.button
+                self.mouse.button_pressed = pygame.mouse.get_pressed()
                 if event.button == 1:
                     self.mouse.set_click(event.pos)
-                    pygame.mouse.get_rel()
-                elif event.button == 5:
-                    self.view_port.zoom_out()
-                    #dx, dy = self.view_port.get_center_offset()
-                    #self.view_port.move_camera_by_vector(-dx, -dy)
-                elif event.button == 4:
-                    self.view_port.zoom_in()
-                    #dx, dy = self.view_port.get_center_offset()
-                    #self.view_port.move_camera_by_vector(dx, dy)
             elif event.type == pygame.MOUSEMOTION:
+                self.mouse.mouse_motion = True
                 self.mouse.set_position(pygame.mouse.get_pos())
-                # left, middle, right = pygame.mouse.get_pressed()
-                if self.mouse.holding:
-                    move = pygame.mouse.get_rel()
-                    offset_x = -move[0] / self.view_port.zoom
-                    offset_y = -move[1] / self.view_port.zoom
-                    self.view_port.move_camera_by_vector(offset_x, offset_y)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
@@ -667,8 +681,8 @@ class Simulation:
             pygame.draw.rect(view, (200, 50, 50),
                              (0, 0, view.get_width()-(thick//2), view.get_height()-(thick//2)), thick)
         self.info_panel.render()
-        self.main_surface.blit(self.view_port.surface, (0, 0))
-        self.main_surface.blit(self.info_panel.surface, (self.view_port.surface_width, 0))
+        self.main_surface.blit(self.view_port.surface, self.view_port_position[0])
+        self.main_surface.blit(self.info_panel.surface, self.info_panel_position[0])
         # Draw a line separating the view port from the info view
         line_start = (self.view_port.surface_width, 0)
         line_end = (self.view_port.surface_width, self.info_panel.height)
@@ -706,6 +720,9 @@ class Simulation:
             self.click_coordinates = (0, 0)
             self.release_coordinates = (0, 0)
             self.click_time = 0
+            self.mouse_button = None
+            self.mouse_motion = False
+            self.button_pressed = (0, 0, 0)
 
         def _scale_coordinates(self, pos):
             return pos[0]//self.scale, pos[1]//self.scale
@@ -715,6 +732,7 @@ class Simulation:
             self.hold_time = 0
             self.click_time = time.time()
             self.holding = True
+            pygame.mouse.get_rel()
 
         def set_release(self, pos):
             self.release_coordinates = self._scale_coordinates(pos)
@@ -724,13 +742,27 @@ class Simulation:
         def set_position(self, pos):
             self.pos = self._scale_coordinates(pos)
 
+        def get_instant_diff(self):
+            return pygame.mouse.get_rel()
+
         def get_drag_vector(self):
             dx = self.release_coordinates[0] - self.click_coordinates[0]
             dy = self.release_coordinates[1] - self.click_coordinates[1]
             # TODO: Finish this method
 
+        def in_rectangle(self, rectangle):
+            # Returns true if point is within rectangle, false otherwise
+            point = self.pos
+            x1 = rectangle[0][0]
+            y1 = rectangle[0][1]
+            x2 = x1 + rectangle[1][0]
+            y2 = y1 + rectangle[1][1]
+
+            return x1 <= point[0] <= x2 and y1 <= point[1] <= y2
+
+
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=150000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=start_behavior)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=None)
