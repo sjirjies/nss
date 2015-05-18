@@ -17,10 +17,12 @@ def reproduce_possible(bot):
 
 @statement
 def create_clone(bot):
+    # First the parent bot must pay an energy tax
+    bot.world.drain_energy_from_entity(10, bot)
     child_behavior = bot.behavior.return_tree_copy()
     # If is the second or greater child, then possible mutate the behavior
     if bot.number_children >= 2:
-        if random_integers(1, 100) < 75:
+        if random_integers(1, 100) < 85:
             child_behavior.mutate_behavior()
     child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3), behavior_graph=child_behavior)
     # For now just start at the first node. Setting it to a random one could be interesting as well.

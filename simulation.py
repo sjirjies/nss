@@ -66,6 +66,8 @@ class World:
                     array.remove(entity)
                     if isinstance(entity, Bot):
                         self.recently_dead_bots.append(entity)
+                        if entity is self.selected_bot:
+                            self.selected_bot = None
                 else:
                     # Make sure the entity wraps around the boundaries
                     if self.boundary_sizes:
@@ -182,7 +184,7 @@ class World:
                       (int(self.energy_pool), int(self.energy_pool//bot_energy), bot_energy))
             if self.energy_pool < bot_energy:
                 print("Not enough free energy for even a single bot.")
-                print("Deleting food until there in enough free energy.")
+                print("Deleting food until there is enough free energy.")
                 while (10 * bot_energy) > self.energy_pool:
                     plant = self.plants.pop()
                     self.energy_pool += plant.energy
@@ -427,7 +429,6 @@ class ViewPort:
                 # Make sure the entity is visible in the camera before bothering with rendering it
                 entity_in_camera_x = self.camera_x <= entity.x < (self.surface_width / self.zoom) + self.camera_x
                 entity_in_camera_y = self.camera_y <= entity.y < (self.surface_height / self.zoom) + self.camera_y
-
                 # TODO: change this to work with zooms, include camera width and height
                 if entity_in_camera_x and entity_in_camera_y:
                     if isinstance(entity, Plant):
@@ -454,6 +455,11 @@ class ViewPort:
                 pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         self.surface.unlock()
 
+    def track_selected_bot(self):
+        if self.world.selected_bot:
+            bot = self.world.selected_bot
+            self.center_camera_on_point((int(bot.x), int(bot.y)))
+
     def move_camera_to_coordinates(self, x, y):
         self.camera_x, self.camera_y = x, y
 
@@ -466,24 +472,37 @@ class ViewPort:
         dy = (self.surface_height / (self.zoom + 1)) - self.camera_y
         return dx, dy
 
+    def center_camera_on_point(self, point):
+        box_width, box_height = self.surface_width/self.zoom, self.surface_height/self.zoom
+        half_width, half_height = box_width//2, box_height//2
+        x = point[0] - half_width
+        y = point[1] - half_height
+        self.move_camera_to_coordinates(x, y)
+
     def point_to_world(self, point):
         world_x = (point[0] / self.zoom) + self.camera_x
         world_y = (point[1] / self.zoom) + self.camera_y
         return world_x, world_y
 
 
-class InfoPanel:
-    def __init__(self, world, clock, width, height, text_color, bg_color):
+class BasePanel:
+    def __init__(self, world, width, height, text_color, bg_color):
         self.text_color = text_color
         self.surface = pygame.Surface((width, height))
-        self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
+        # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
         self.world = world
+        self.writer = TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
+        self.bg_color = bg_color
+
+
+class InfoPanel(BasePanel):
+    def __init__(self, world, clock, width, height, text_color, bg_color):
+        super(InfoPanel, self).__init__(world, width, height, text_color, bg_color)
+        self.width, self.height = width, height
         self.clock = clock
         self.labels_map = self._position_labels()
         self._position_labels()
-        self.writer = self.TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
-        self.bg_color = bg_color
 
     def _position_labels(self):
         x = 5
@@ -493,7 +512,6 @@ class InfoPanel:
         for index, label in enumerate(labels):
             positions.append((label, (x, (index+1)*y)))
         positions.insert(0, ("Metrics", (x, x)))
-
         return positions
 
     def render(self):
@@ -507,7 +525,7 @@ class InfoPanel:
             if index > 0:
                 amount_surface = self.writer.get_text_surface(str(data[index-1]), self.text_color)
                 # amount_surface = self.font.render(str(data[index-1]), 0, color)
-                self.surface.blit(amount_surface, (15, pos[1]+11))
+                self.surface.blit(amount_surface, (11, pos[1]+11))
 
     def poll_data(self):
         data = []
@@ -524,35 +542,74 @@ class InfoPanel:
         data.append(len(self.world.signals))
         return data
 
-    class TextWriter:
-        def __init__(self, filename, char_width, char_height, border_gap, chars_per_row):
-            self.font_surface = pygame.image.load(os.getcwd() + os.sep + filename)
-            self.char_height = char_height
-            self.char_width = char_width
-            self.char_border = border_gap
-            self.chars_per_row = chars_per_row
-            self.char_map = {}
-            for i in range(32, 128):
-                char_index = i-32
-                row = char_index // self.chars_per_row
-                col = char_index % self.chars_per_row
-                x_coord = (self.char_border * (col + 1)) + (col * self.char_width)
-                y_coord = (self.char_border * (row + 1)) + (row * self.char_height)
-                self.char_map[chr(i)] = ((x_coord, y_coord, self.char_width, self.char_height))
 
-        def get_text_surface(self, text, text_color):
-            chars_surface = pygame.Surface(((len(text) * self.char_width) + len(text), self.char_height),
-                                           depth=self.font_surface)
-            for i, char in enumerate(text):
-                if char in self.char_map:
-                    rect = self.char_map[char]
-                else:
-                    rect = self.char_map[chr(127)]
-                chars_surface.blit(self.font_surface, ((i * self.char_width) + i, 0,
-                                                       self.char_width, self.char_height), rect)
-            pixel_array = pygame.PixelArray(chars_surface)
-            pixel_array.replace((0, 0, 0), text_color)
-            return chars_surface
+class BotPanel(BasePanel):
+    def __init__(self, world, width, height, text_color, bg_color):
+        super(BotPanel, self).__init__(world, width, height, text_color, bg_color)
+        self.labels_map = self._position_labels()
+
+    def _position_labels(self):
+        x = 7
+        y = 22
+        labels = ["Name", "Position", "Energy", "Peak Energy", "Birthday", "Age", "Children"]
+        positions = []
+        for index, label in enumerate(labels):
+            positions.append((label, (x, (index+1)*y)))
+        positions.insert(0, ("Selected Bot", (x, x)))
+        return positions
+
+    def render(self):
+        data = self.poll_data()
+        self.surface.fill(self.bg_color)
+        for index, pair in enumerate(self.labels_map):
+            label, pos = pair
+            label_surface = self.writer.get_text_surface(label, self.text_color)
+            # label_surface = self.font.render(label, 0, color)
+            self.surface.blit(label_surface, pos)
+            if index > 0:
+                amount_surface = self.writer.get_text_surface(str(data[index-1]), self.text_color)
+                # amount_surface = self.font.render(str(data[index-1]), 0, color)
+                self.surface.blit(amount_surface, (11, pos[1]+11))
+
+    def poll_data(self):
+        if self.world.selected_bot:
+            bot = self.world.selected_bot
+            data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
+                    bot.birthday, bot.age, bot.number_children]
+            return data
+        else:
+            return ['-' for _ in range(8)]
+
+
+class TextWriter:
+    def __init__(self, filename, char_width, char_height, border_gap, chars_per_row):
+        self.font_surface = pygame.image.load(os.getcwd() + os.sep + filename)
+        self.char_height = char_height
+        self.char_width = char_width
+        self.char_border = border_gap
+        self.chars_per_row = chars_per_row
+        self.char_map = {}
+        for i in range(32, 128):
+            char_index = i-32
+            row = char_index // self.chars_per_row
+            col = char_index % self.chars_per_row
+            x_coord = (self.char_border * (col + 1)) + (col * self.char_width)
+            y_coord = (self.char_border * (row + 1)) + (row * self.char_height)
+            self.char_map[chr(i)] = ((x_coord, y_coord, self.char_width, self.char_height))
+
+    def get_text_surface(self, text, text_color):
+        chars_surface = pygame.Surface(((len(text) * self.char_width) + len(text), self.char_height),
+                                       depth=self.font_surface)
+        for i, char in enumerate(text):
+            if char in self.char_map:
+                rect = self.char_map[char]
+            else:
+                rect = self.char_map[chr(127)]
+            chars_surface.blit(self.font_surface, ((i * self.char_width) + i, 0,
+                                                   self.char_width, self.char_height), rect)
+        pixel_array = pygame.PixelArray(chars_surface)
+        pixel_array.replace((0, 0, 0), text_color)
+        return chars_surface
 
 
 class Simulation:
@@ -570,11 +627,20 @@ class Simulation:
         else:
             view_port_width, view_port_height = 300, 300
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
-        self.info_panel = InfoPanel(self.world, self.clock, 75, 300, (220, 220, 220), (10, 10, 10))
-        main_surface_width = view_port_width + self.info_panel.width
+        panel_text_color = (220, 220, 220)
+        panel_bg_color = (10, 10, 10)
+        panel_width = 85
+        self.info_panel = InfoPanel(self.world, self.clock, panel_width,
+                                    view_port_height, panel_text_color, panel_bg_color)
+        self.bot_panel = BotPanel(self.world, panel_width, view_port_height, panel_text_color, panel_bg_color)
+        main_surface_width = view_port_width + self.info_panel.width + self.bot_panel.width
+        print(view_port_height, self.info_panel.height, self.bot_panel.height)
         main_surface_height = view_port_height
-        self.view_port_position = ((0, 0), (self.view_port.surface_width, self.view_port.surface_height))
-        self.info_panel_position = ((self.view_port.surface_width, 0), (self.info_panel.width, self.info_panel.height))
+        self.info_panel_position = ((0, 0), (self.info_panel.width, self.info_panel.height))
+        self.view_port_position = ((self.info_panel.width, 0),
+                                   (self.view_port.surface_width, self.view_port.surface_height))
+        self.bot_panel_position = ((self.view_port_position[0][0] + self.view_port_position[1][0], 0),
+                                   (self.bot_panel.width, self.info_panel.height))
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
         self.window_width, self.window_height = scale * main_surface_width, scale * main_surface_height
         # Create the simulation window
@@ -592,43 +658,51 @@ class Simulation:
         self.seed_plants(plant_growth_ticks)
         # Populate the world with bots
         print("Adding bots...")
-        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=12)
+        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
         # TODO: Account for paused time in the SimulationData results
         # Create a mouse handler and enter mainloop
         self.mouse = self.MouseHandler(self.scale)
         self.mainloop()
 
     def handle_mouse_input(self):
-        if self.mouse.mode == "camera":
-            if self.mouse.holding:
-                if self.mouse.in_rectangle(self.view_port_position):
-                    print("In main view port")
-                if self.mouse.in_rectangle(self.info_panel_position):
-                    print("In info panel")
-            if self.mouse.mouse_button == 5:
-                self.view_port.zoom_out()
-            elif self.mouse.mouse_button == 4:
-                self.view_port.zoom_in()
-
-            if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
-                move = self.mouse.get_instant_diff()
-                offset_x = -move[0] / self.view_port.zoom
-                offset_y = -move[1] / self.view_port.zoom
-                self.view_port.move_camera_by_vector(offset_x, offset_y)
-
-        elif self.mouse.mode == "bot-select":
-            if self.mouse.mouse_button == 1:
-                self.world.selected_bot = None
-                world_point = self.view_port.point_to_world(self.mouse.pos)
-                distances, indexes = self.world.kd_tree.query(world_point, k=10)
-                for distance, index in zip(distances, indexes):
-                    entity = self.world.all_entities[index]
-                    if isinstance(entity, Bot):
-                        self.world.selected_bot = entity
-                        print(self.world.selected_bot)
-                        break
-
-
+        if self.mouse.in_rectangle(self.view_port_position):
+            mx, my = self.mouse.pos
+            point_x, point_y = mx - self.view_port_position[0][0], my - self.view_port_position[0][1]
+            if self.mouse.mode == "camera":
+                # In view port
+                # Translate mouse relative to view port
+                # TODO: Reduce redundancy here
+                if self.mouse.mouse_button == 5:
+                    world_x, world_y = self.view_port.point_to_world((self.view_port.surface_width//2,
+                                                                      self.view_port.surface_height//2))
+                    self.view_port.zoom_out()
+                    self.view_port.center_camera_on_point((world_x, world_y))
+                elif self.mouse.mouse_button == 4:
+                    world_x, world_y = self.view_port.point_to_world((self.view_port.surface_width//2,
+                                                                      self.view_port.surface_height//2))
+                    self.view_port.zoom_in()
+                    self.view_port.center_camera_on_point((world_x, world_y))
+                if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
+                    move = self.mouse.get_instant_diff()
+                    offset_x = -move[0] / self.view_port.zoom
+                    offset_y = -move[1] / self.view_port.zoom
+                    self.view_port.move_camera_by_vector(offset_x, offset_y)
+            elif self.mouse.mode == "bot-select":
+                if self.mouse.mouse_button == 1:
+                    self.world.selected_bot = None
+                    # Get the mouse position relative to the view port
+                    world_point = self.view_port.point_to_world((point_x, point_y))
+                    distances, indexes = self.world.kd_tree.query(world_point, k=15)
+                    for distance, index in zip(distances, indexes):
+                        entity = self.world.all_entities[index]
+                        if isinstance(entity, Bot):
+                            self.world.selected_bot = entity
+                            print('Selecting bot near world point', world_point)
+                            print('Selecetd', self.world.selected_bot, distance, 'from mouse point')
+                            break
+        elif self.mouse.in_rectangle(self.info_panel_position):
+                # In info panel
+                pass
 
     def mainloop(self):
         while self.running:
@@ -636,6 +710,7 @@ class Simulation:
             self.handle_mouse_input()
             # Update the world
             if not self.paused:
+                self.view_port.track_selected_bot()
                 self.world.step()
                 # Collect Data if enabled
                 self.collect_data()
@@ -685,8 +760,10 @@ class Simulation:
                     self.view_port.zoom = 1
                 elif key == pygame.K_1:
                     self.mouse.mode = "camera"
+                    print("Entered 'camera' mode")
                 elif key == pygame.K_2:
                     self.mouse.mode = "bot-select"
+                    print("Entered 'bot-select' mode")
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self.mouse.mouse_button = event.button
@@ -708,13 +785,17 @@ class Simulation:
             thick = 1
             view = self.view_port.surface
             pygame.draw.rect(view, (200, 50, 50),
-                             (0, 0, view.get_width()-(thick//2), view.get_height()-(thick//2)), thick)
+                             (1, 0, view.get_width()-(thick//2)-1, view.get_height()-(thick//2)), thick)
         self.info_panel.render()
+        self.bot_panel.render()
         self.main_surface.blit(self.view_port.surface, self.view_port_position[0])
         self.main_surface.blit(self.info_panel.surface, self.info_panel_position[0])
+        self.main_surface.blit(self.bot_panel.surface, self.bot_panel_position[0])
         # Draw a line separating the view port from the info view
-        line_start = (self.view_port.surface_width, 0)
-        line_end = (self.view_port.surface_width, self.info_panel.height)
+        for panel, offset in ((self.info_panel_position, 1), (self.bot_panel_position, self.bot_panel_position[1][0])):
+            line_start = (panel[0][0] + panel[1][0] - offset, panel[0][1])
+            line_end = (line_start[0], line_start[1] + panel[1][1])
+            pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
         pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
         final_surface = self.main_surface
         if self.scale > 1:
@@ -787,7 +868,6 @@ class Simulation:
             y1 = rectangle[0][1]
             x2 = x1 + rectangle[1][0]
             y2 = y1 + rectangle[1][1]
-
             return x1 <= point[0] <= x2 and y1 <= point[1] <= y2
 
 
@@ -795,4 +875,4 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=150000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=None)
+    Simulation(earth, 500, 100, 250, collect_data=True, fps=20, scale=3, default_behavior=start_behavior)
