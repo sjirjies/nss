@@ -421,26 +421,13 @@ class ViewPort:
         if self.zoom >= 2:
             self.zoom -= 1
 
+    def point_is_visible(self, point):
+        visible_x = self.camera_x <= point[0] < (self.surface_width / self.zoom) + self.camera_x
+        visible_y = self.camera_y <= point[1] < (self.surface_height / self.zoom) + self.camera_y
+        return visible_x and visible_y
+
     def render(self):
         self.surface.fill((0, 0, 0))
-        pixels = pygame.surfarray.pixels3d(self.surface)
-        for entity_list in [self.world.plants, self.world.bots]:
-            for entity in entity_list:
-                # Make sure the entity is visible in the camera before bothering with rendering it
-                entity_in_camera_x = self.camera_x <= entity.x < (self.surface_width / self.zoom) + self.camera_x
-                entity_in_camera_y = self.camera_y <= entity.y < (self.surface_height / self.zoom) + self.camera_y
-                # TODO: change this to work with zooms, include camera width and height
-                if entity_in_camera_x and entity_in_camera_y:
-                    if isinstance(entity, Plant):
-                        ratio = entity.energy/entity.max_energy
-                        entity_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    if isinstance(entity, Bot):
-                        if entity is self.world.selected_bot:
-                            entity_color = (255, 255, 255)
-                        else:
-                            entity_color = (200, 40, 200)
-                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = entity_color
-        del pixels
         self.surface.lock()
         for signal in self.world.signals:
             # Make sure the signal is visible in the view before rendering it
@@ -454,7 +441,28 @@ class ViewPort:
                 signal_color = signal.color if signal.color else (75, 75, 75)
                 pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         self.surface.unlock()
-
+        pixels = pygame.surfarray.pixels3d(self.surface)
+        for entity_list in [self.world.plants, self.world.bots]:
+            for entity in entity_list:
+                # Make sure the entity is visible in the camera before bothering with rendering it
+                if self.point_is_visible((entity.x, entity.y)):
+                    entity_color = (255, 255, 255)
+                    if isinstance(entity, Plant):
+                        ratio = entity.energy/entity.max_energy
+                        entity_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
+                    if isinstance(entity, Bot):
+                        entity_color = (200, 40, 200)
+                        if self.world.selected_bot and entity is self.world.selected_bot:
+                            base_x = (entity.x-self.camera_x) * self.zoom
+                            base_y = (entity.y-self.camera_y) * self.zoom
+                            for border_x in (-1, 0, 1):
+                                for border_y in (-1, 0, 1):
+                                    px = base_x + border_x
+                                    py = base_y + border_y
+                                    pixels[px][py] = (255, 255, 255)
+                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = entity_color
+        del pixels
+        
     def track_selected_bot(self):
         if self.world.selected_bot:
             bot = self.world.selected_bot
