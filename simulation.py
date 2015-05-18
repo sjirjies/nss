@@ -460,6 +460,11 @@ class ViewPort:
         dy = (self.surface_height / (self.zoom + 1)) - self.camera_y
         return dx, dy
 
+    def point_to_world(self, point):
+        world_x = (point[0] / self.zoom) + self.camera_x
+        world_y = (point[1] / self.zoom) + self.camera_y
+        print(world_x, world_y)
+
 
 class InfoPanel:
     def __init__(self, world, clock, width, height, text_color, bg_color):
@@ -588,22 +593,28 @@ class Simulation:
         self.mainloop()
 
     def handle_mouse_input(self):
-        if self.mouse.holding:
-            if self.mouse.in_rectangle(self.view_port_position):
-                print("In main view port")
-            if self.mouse.in_rectangle(self.info_panel_position):
-                print("In info panel")
-        if self.mouse.mouse_button == 5:
-            self.view_port.zoom_out()
-        elif self.mouse.mouse_button == 4:
-            self.view_port.zoom_in()
+        if self.mouse.mode == "camera":
+            if self.mouse.holding:
+                if self.mouse.in_rectangle(self.view_port_position):
+                    print("In main view port")
+                if self.mouse.in_rectangle(self.info_panel_position):
+                    print("In info panel")
+            if self.mouse.mouse_button == 5:
+                self.view_port.zoom_out()
+            elif self.mouse.mouse_button == 4:
+                self.view_port.zoom_in()
 
-        # left, middle, right = pygame.mouse.get_pressed()
-        if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
-            move = self.mouse.get_instant_diff()
-            offset_x = -move[0] / self.view_port.zoom
-            offset_y = -move[1] / self.view_port.zoom
-            self.view_port.move_camera_by_vector(offset_x, offset_y)
+            if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
+                move = self.mouse.get_instant_diff()
+                offset_x = -move[0] / self.view_port.zoom
+                offset_y = -move[1] / self.view_port.zoom
+                self.view_port.move_camera_by_vector(offset_x, offset_y)
+
+        elif self.mouse.mode == "bot-select":
+            if self.mouse.mouse_button == 1:
+                self.view_port.point_to_world(self.mouse.pos)
+                #print("bot selected")
+
 
     def mainloop(self):
         while self.running:
@@ -658,6 +669,10 @@ class Simulation:
                 elif key == pygame.K_0:
                     self.view_port.move_camera_to_coordinates(0, 0)
                     self.view_port.zoom = 1
+                elif key == pygame.K_1:
+                    self.mouse.mode = "camera"
+                elif key == pygame.K_2:
+                    self.mouse.mode = "bot-select"
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self.mouse.mouse_button = event.button
@@ -723,6 +738,7 @@ class Simulation:
             self.mouse_button = None
             self.mouse_motion = False
             self.button_pressed = (0, 0, 0)
+            self.mode = "camera"
 
         def _scale_coordinates(self, pos):
             return pos[0]//self.scale, pos[1]//self.scale
