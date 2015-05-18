@@ -36,6 +36,7 @@ class World:
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
         self.half_boundaries = None
+        self.selected_bot = None
         if self.boundary_sizes:
             self.half_boundaries = self.boundary_sizes[0]/2, self.boundary_sizes[1]/2
         self.energy_pool = energy_pool
@@ -421,7 +422,7 @@ class ViewPort:
     def render(self):
         self.surface.fill((0, 0, 0))
         pixels = pygame.surfarray.pixels3d(self.surface)
-        for entity_list, color in [(self.world.plants, (40, 200, 40)), (self.world.bots, (200, 40, 200))]:
+        for entity_list in [self.world.plants, self.world.bots]:
             for entity in entity_list:
                 # Make sure the entity is visible in the camera before bothering with rendering it
                 entity_in_camera_x = self.camera_x <= entity.x < (self.surface_width / self.zoom) + self.camera_x
@@ -431,8 +432,13 @@ class ViewPort:
                 if entity_in_camera_x and entity_in_camera_y:
                     if isinstance(entity, Plant):
                         ratio = entity.energy/entity.max_energy
-                        color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = color
+                        entity_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
+                    if isinstance(entity, Bot):
+                        if entity is self.world.selected_bot:
+                            entity_color = (255, 255, 255)
+                        else:
+                            entity_color = (200, 40, 200)
+                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = entity_color
         del pixels
         self.surface.lock()
         for signal in self.world.signals:
@@ -612,16 +618,15 @@ class Simulation:
 
         elif self.mouse.mode == "bot-select":
             if self.mouse.mouse_button == 1:
+                self.world.selected_bot = None
                 world_point = self.view_port.point_to_world(self.mouse.pos)
                 distances, indexes = self.world.kd_tree.query(world_point, k=10)
-                nearest_bot = None
                 for distance, index in zip(distances, indexes):
                     entity = self.world.all_entities[index]
                     if isinstance(entity, Bot):
-                        nearest_bot = entity
-
-                if nearest_bot:
-                    print(nearest_bot)
+                        self.world.selected_bot = entity
+                        print(self.world.selected_bot)
+                        break
 
 
 
