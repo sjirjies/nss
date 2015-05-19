@@ -17,20 +17,22 @@ def reproduce_possible(bot):
 
 @statement
 def create_clone(bot):
-    # First the parent bot must pay an energy tax
-    bot.world.drain_energy_from_entity(10, bot)
-    child_behavior = bot.behavior.return_tree_copy()
-    # If is the second or greater child, then possible mutate the behavior
-    if bot.number_children >= 2:
-        if random_integers(1, 100) < 85:
-            child_behavior.mutate_behavior()
-    child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3), behavior_graph=child_behavior)
-    # For now just start at the first node. Setting it to a random one could be interesting as well.
-    child.behavior.current_behavior_node = child.behavior.behavior_nodes[0]
-    bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
-    bot.number_children += 1
-    # print("%s spawned %s" % (str(bot), str(child)))
-    bot.world.add_entity(child)
+    # Let's require the bot to have energy before it can do this
+    if bot.energy > 0:
+        # First the parent bot must pay an energy tax
+        bot.world.drain_energy_from_entity(10, bot)
+        child_behavior = bot.behavior.return_tree_copy()
+        # If is the second or greater child, then possible mutate the behavior
+        if bot.number_children >= 2:
+            if random_integers(1, 100) < 85:
+                child_behavior.mutate_behavior()
+        child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3), behavior_graph=child_behavior)
+        # For now just start at the first node. Setting it to a random one could be interesting as well.
+        child.behavior.current_behavior_node = child.behavior.behavior_nodes[0]
+        bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
+        bot.number_children += 1
+        # print("%s spawned %s" % (str(bot), str(child)))
+        bot.world.add_entity(child)
 
 @statement
 def launch_signal(bot):
