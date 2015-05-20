@@ -26,7 +26,8 @@ def create_clone(bot):
         if bot.number_children >= 2:
             if random_integers(1, 100) < 85:
                 child_behavior.mutate_behavior()
-        child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3), behavior_graph=child_behavior)
+        child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3),
+                    generation_number=bot.generation_number+1, behavior_graph=child_behavior)
         # For now just start at the first node. Setting it to a random one could be interesting as well.
         child.behavior.current_behavior_node = child.behavior.behavior_nodes[0]
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)

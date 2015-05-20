@@ -204,7 +204,7 @@ class BotPanel(BasePanel):
     def _position_labels(self):
         x = 7
         y = 22
-        labels = ["Name", "Position", "Energy", "Peak Energy", "Birthday", "Age", "Children"]
+        labels = ["Name", "Position", "Energy", "Peak Energy", "Generation", "Birthday", "Age", "Children"]
         positions = []
         for index, label in enumerate(labels):
             positions.append((label, (x, (index+1)*y)))
@@ -228,7 +228,7 @@ class BotPanel(BasePanel):
         if self.world.selected_bot:
             bot = self.world.selected_bot
             data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
-                    bot.birthday, bot.age, bot.number_children]
+                    bot.generation_number, bot.birthday, bot.age, bot.number_children]
             return data
         else:
             return ['-' for _ in range(8)]
@@ -525,6 +525,6 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=150000)
+    earth = World(boundary_sizes=(250, 250), energy_pool=175000)
     start_behavior = create_basic_intelligence()
-    Simulation(earth, 500, 500, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
+    Simulation(earth, 500, 150, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)

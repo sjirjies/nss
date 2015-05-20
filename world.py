@@ -189,7 +189,7 @@ class World:
             else:
                 x = randint(-50, 50)
                 y = randint(-50, 50)
-            bot = Bot(x, y, behavior_graph=behavior)
+            bot = Bot(x, y, 1, behavior_graph=behavior)
             if self.energy_pool is not None and self.energy_pool < bot_energy:
                 break
             self.add_entity(bot)
@@ -206,7 +206,7 @@ class WorldWatcher:
         self.bot_numbers = []
         self.signal_numbers = []
         # Create a dummy 'best bot' for now
-        self.best_bot = Bot(0, 0, name='Dummy_Bot')
+        self.best_bot = Bot(0, 0, 0, name='Dummy_Bot')
         self.best_bot.birthday = 0
         self.directory = os.getcwd() + os.sep + 'metrics'
         self.hall_champions_file_path = self.directory + os.sep + 'hall_of_champions.csv'

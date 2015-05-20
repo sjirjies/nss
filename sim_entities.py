@@ -28,13 +28,14 @@ class BaseSimulationEntity:
 class Bot(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x_start, y_start, behavior_graph=None, name=None):
+    def __init__(self, x_start, y_start, generation_number=-1, behavior_graph=None, name=None):
         super().__init__(x_start, y_start)
         self.behavior = behavior_graph
         self.speed = 1
         self.child_investment = 200
         self.max_age = 2000
         self.peak_energy = 0
+        self.generation_number = generation_number
         self.target_point = x_start, y_start
         self.signal = None
         Bot.counter += 1
