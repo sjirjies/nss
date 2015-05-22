@@ -74,12 +74,10 @@ class ViewPort:
     def render(self):
         self.surface.fill((0, 0, 0))
         self.surface.lock()
+        selected_x, selected_y = None, None
         for signal in self.world.signals:
             # Make sure the signal is visible in the view before rendering it
-            signal_in_camera_x = self.camera_x <= signal.x < (self.surface_width / self.zoom) + self.camera_x
-            signal_in_camera_y = self.camera_y <= signal.y < (self.surface_height / self.zoom) + self.camera_y
-
-            if signal_in_camera_x and signal_in_camera_y:
+            if self.point_is_visible((signal.x, signal.y)):
                 diameter = signal.diameter
                 left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
                 top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
@@ -98,16 +96,17 @@ class ViewPort:
                     if isinstance(entity, Bot):
                         entity_color = (200, 40, 200)
                         if self.world.selected_bot and entity is self.world.selected_bot:
-                            base_x = (entity.x-self.camera_x) * self.zoom
-                            base_y = (entity.y-self.camera_y) * self.zoom
-                            for border_x in (-1, 0, 1):
-                                for border_y in (-1, 0, 1):
-                                    px = base_x + border_x
-                                    py = base_y + border_y
-                                    pixels[px][py] = (255, 255, 255)
+                            selected_x = (entity.x-self.camera_x) * self.zoom
+                            selected_y = (entity.y-self.camera_y) * self.zoom
                     pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = entity_color
+        # Draw a selection outline if a bot is selected
+        if selected_x and selected_y:
+            for border_x, border_y in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+                px = selected_x + border_x
+                py = selected_y + border_y
+                pixels[px][py] = (255, 255, 255)
         del pixels
-        
+
     def track_selected_bot(self):
         if self.world.selected_bot:
             bot = self.world.selected_bot
@@ -127,7 +126,7 @@ class ViewPort:
 
     def center_camera_on_point(self, point):
         box_width, box_height = self.surface_width/self.zoom, self.surface_height/self.zoom
-        half_width, half_height = box_width//2, box_height//2
+        half_width, half_height = box_width/2, box_height/2
         x = point[0] - half_width
         y = point[1] - half_height
         self.move_camera_to_coordinates(x, y)
@@ -527,4 +526,11 @@ if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=175000)
     start_behavior = create_basic_intelligence()
+    print("Controls:")
+    print(" Camera Mode: Keyboard Key '1'")
+    print("   Mouse wheel zoom, left drag to pan")
+    print(" Bot-Select Mode: Keyboard Key '2'")
+    print("   Left button to select")
+    print(" Space key to toggle Pause")
+    print(" Keyboard Key '0': Recenter to original view")
     Simulation(earth, 500, 150, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
