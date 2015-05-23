@@ -93,38 +93,49 @@ class ViewPort(BasePanel):
     def render(self):
         self.surface.fill(self.bg_color)
         self.surface.lock()
-        selected_x, selected_y = None, None
+        self.surface.unlock()
+        pixels = pygame.surfarray.pixels3d(self.surface)
         for signal in self.world.signals:
-            # Make sure the signal is visible in the view before rendering it
             if self.point_is_visible((signal.x, signal.y)):
                 diameter = signal.diameter
                 left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
                 top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
                 signal_color = signal.color if signal.color else (75, 75, 75)
                 pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
-        self.surface.unlock()
-        pixels = pygame.surfarray.pixels3d(self.surface)
-        for entity_list in [self.world.plants, self.world.bots]:
-            for entity in entity_list:
-                # Make sure the entity is visible in the camera before bothering with rendering it
-                if self.point_is_visible((entity.x, entity.y)):
-                    entity_color = (255, 255, 255)
-                    if isinstance(entity, Plant):
-                        ratio = entity.energy/entity.max_energy
-                        entity_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                    if isinstance(entity, Bot):
-                        entity_color = (200, 40, 200)
-                        if self.world.selected_bot and entity is self.world.selected_bot:
-                            selected_x = (entity.x-self.camera_x) * self.zoom
-                            selected_y = (entity.y-self.camera_y) * self.zoom
-                    pixels[(entity.x-self.camera_x) * self.zoom][(entity.y-self.camera_y) * self.zoom] = entity_color
+        for plant in self.world.plants:
+            if self.point_is_visible((plant.x, plant.y)):
+                ratio = plant.energy/plant.max_energy
+                plant_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
+                self._draw_plant_or_bot(pixels, plant, plant_color, True)
+        for bot in self.world.bots:
+            if self.point_is_visible((bot.x, bot.y)):
+                bot_color = (200, 40, 200)
+                self._draw_plant_or_bot(pixels, bot, bot_color, True)
         # Draw a selection outline if a bot is selected
-        if selected_x and selected_y:
-            for border_x, border_y in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-                px = selected_x + border_x
-                py = selected_y + border_y
-                pixels[px][py] = (255, 255, 255)
+        if self.world.selected_bot:
+            self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), False)
         del pixels
+
+    def _draw_plant_or_bot(self, pixel_array, entity, entity_color, fill_it):
+        t = 0 if fill_it else 1
+        diameter = self.zoom
+        if not fill_it:
+            diameter += 1
+        x, y = self.world_point_to_surface((entity.x, entity.y))
+        if self.zoom == 1:
+            pixel_array[x][y] = entity_color
+            if not fill_it:
+                for border_x, border_y in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+                    px = x + border_x
+                    py = y + border_y
+                    pixel_array[px][py] = (255, 255, 255)
+        elif self.zoom <= 2:
+            pygame.draw.rect(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
+        elif self.zoom == 3:
+            diameter += 1
+            pygame.draw.ellipse(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
+        else:
+            pygame.draw.ellipse(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
 
     def track_selected_bot(self):
         if self.world.selected_bot:
@@ -150,10 +161,11 @@ class ViewPort(BasePanel):
         y = point[1] - half_height
         self.move_camera_to_coordinates(x, y)
 
-    def point_to_world(self, point):
-        world_x = (point[0] / self.zoom) + self.camera_x
-        world_y = (point[1] / self.zoom) + self.camera_y
-        return world_x, world_y
+    def surface_point_to_world(self, point):
+        return (point[0] / self.zoom) + self.camera_x, (point[1] / self.zoom) + self.camera_y
+
+    def world_point_to_surface(self, point):
+        return (point[0]-self.camera_x) * self.zoom, (point[1]-self.camera_y) * self.zoom
 
 
 class InfoPanel(BasePanel):
@@ -336,12 +348,12 @@ class Simulation:
                 # Translate mouse relative to view port
                 # TODO: Reduce redundancy here
                 if self.mouse.mouse_button == 5:
-                    world_x, world_y = self.view_port.point_to_world((self.view_port.width//2,
+                    world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
                                                                       self.view_port.height//2))
                     self.view_port.zoom_out()
                     self.view_port.center_camera_on_point((world_x, world_y))
                 elif self.mouse.mouse_button == 4:
-                    world_x, world_y = self.view_port.point_to_world((self.view_port.width//2,
+                    world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
                                                                       self.view_port.height//2))
                     self.view_port.zoom_in()
                     self.view_port.center_camera_on_point((world_x, world_y))
@@ -354,7 +366,7 @@ class Simulation:
                 if self.mouse.mouse_button == 1:
                     self.world.selected_bot = None
                     # Get the mouse position relative to the view port
-                    world_point = self.view_port.point_to_world((point_x, point_y))
+                    world_point = self.view_port.surface_point_to_world((point_x, point_y))
                     distances, indexes = self.world.kd_tree.query(world_point, k=15)
                     for distance, index in zip(distances, indexes):
                         entity = self.world.all_entities[index]
@@ -594,4 +606,4 @@ if __name__ == '__main__':
     print("   Left button to select")
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
-    Simulation(earth, 500, 150, 250, collect_data=True, fps=20, scale=2, default_behavior=start_behavior)
+    Simulation(earth, 500, 150, 250, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
