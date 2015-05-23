@@ -319,7 +319,7 @@ class Simulation:
         if self.mouse.in_rectangle(self.view_port_position):
             mx, my = self.mouse.pos
             point_x, point_y = mx - self.view_port_position[0][0], my - self.view_port_position[0][1]
-            if self.mouse.mode == "camera":
+            if self.mouse.current_mode == "camera":
                 # In view port
                 # Translate mouse relative to view port
                 # TODO: Reduce redundancy here
@@ -338,7 +338,7 @@ class Simulation:
                     offset_x = -move[0] / self.view_port.zoom
                     offset_y = -move[1] / self.view_port.zoom
                     self.view_port.move_camera_by_vector(offset_x, offset_y)
-            elif self.mouse.mode == "bot-select":
+            elif self.mouse.current_mode == "bot-select":
                 if self.mouse.mouse_button == 1:
                     self.world.selected_bot = None
                     # Get the mouse position relative to the view port
@@ -349,8 +349,12 @@ class Simulation:
                         if isinstance(entity, Bot):
                             self.world.selected_bot = entity
                             print('Selecting bot near world point', world_point)
-                            print('Selecetd', self.world.selected_bot, distance, 'from mouse point')
+                            print('Selected', self.world.selected_bot, distance, 'from mouse point')
                             break
+                elif self.mouse.mouse_button == 3:
+                    if self.world.selected_bot:
+                        print("Removing bot selection")
+                        self.world.selected_bot = None
         elif self.mouse.in_rectangle(self.info_panel_position):
                 # In info panel
                 pass
@@ -410,10 +414,10 @@ class Simulation:
                     self.view_port.move_camera_to_coordinates(0, 0)
                     self.view_port.zoom = 1
                 elif key == pygame.K_1:
-                    self.mouse.mode = "camera"
+                    self.mouse.change_mode("camera")
                     print("Entered 'camera' mode")
                 elif key == pygame.K_2:
-                    self.mouse.mode = "bot-select"
+                    self.mouse.change_mode("bot-select")
                     print("Entered 'bot-select' mode")
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -448,6 +452,14 @@ class Simulation:
             line_end = (line_start[0], line_start[1] + panel[1][1])
             pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
         pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
+        # Handle cursor graphics
+        if self.mouse.in_rectangle(self.view_port_position):
+            pygame.mouse.set_visible(False)
+            mouse_surface, hotspot = self.mouse.modes[self.mouse.current_mode]
+            position = self.mouse.pos[0] - hotspot[0], self.mouse.pos[1] - hotspot[1]
+            self.main_surface.blit(mouse_surface, position)
+        else:
+            pygame.mouse.set_visible(True)
         final_surface = self.main_surface
         if self.scale > 1:
             width, height = self.main_surface.get_width() * self.scale, self.main_surface.get_height() * self.scale
@@ -484,7 +496,18 @@ class Simulation:
             self.mouse_button = None
             self.mouse_motion = False
             self.button_pressed = (0, 0, 0)
-            self.mode = "camera"
+            camera_surface = pygame.image.load(os.getcwd() + os.sep + 'camera.png')
+            bot_select_surface = pygame.image.load(os.getcwd() + os.sep + 'bot-select.png')
+            # Make a dict of modes and their icons with the hotspot location
+            self.modes = {"camera": (camera_surface, (4, 4)),
+                          "bot-select": (bot_select_surface, (4, 4))}
+            self.current_mode = "camera"
+
+        def change_mode(self, mode):
+            if mode in self.modes:
+                self.current_mode = mode
+            else:
+                raise ValueError("%s is not a registered mouse mode" % mode)
 
         def _scale_coordinates(self, pos):
             return pos[0]//self.scale, pos[1]//self.scale
