@@ -49,11 +49,30 @@ def create_basic_intelligence():
     return behavior
 
 
-class ViewPort:
-    def __init__(self, world, width, height):
+class BasePanel:
+    def __init__(self, world, width, height, text_color, bg_color):
+        self.text_color = text_color
+        self.surface = pygame.Surface((width, height))
+        # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
+        self.width, self.height = width, height
         self.world = world
-        self.surface_width = width
-        self.surface_height = height
+        self.writer = TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
+        self.bg_color = bg_color
+
+    def resize_surface(self, new_size):
+        self.surface = pygame.Surface(new_size)
+        self.width, self.height = new_size
+
+    def get_size(self):
+        return self.width, self.height
+
+
+class ViewPort(BasePanel):
+    def __init__(self, world, width, height, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
+        super(ViewPort, self).__init__(world, width, height, text_color, bg_color)
+        self.world = world
+        self.width = width
+        self.height = height
         self.surface = pygame.Surface((width, height))
         self.camera_x = 0
         self.camera_y = 0
@@ -67,12 +86,12 @@ class ViewPort:
             self.zoom -= 1
 
     def point_is_visible(self, point):
-        visible_x = self.camera_x <= point[0] < (self.surface_width / self.zoom) + self.camera_x
-        visible_y = self.camera_y <= point[1] < (self.surface_height / self.zoom) + self.camera_y
+        visible_x = self.camera_x <= point[0] < (self.width / self.zoom) + self.camera_x
+        visible_y = self.camera_y <= point[1] < (self.height / self.zoom) + self.camera_y
         return visible_x and visible_y
 
     def render(self):
-        self.surface.fill((0, 0, 0))
+        self.surface.fill(self.bg_color)
         self.surface.lock()
         selected_x, selected_y = None, None
         for signal in self.world.signals:
@@ -120,12 +139,12 @@ class ViewPort:
         self.camera_y += dy
 
     def get_center_offset(self):
-        dx = (self.surface_width / (self.zoom + 1)) - self.camera_x
-        dy = (self.surface_height / (self.zoom + 1)) - self.camera_y
+        dx = (self.width / (self.zoom + 1)) - self.camera_x
+        dy = (self.height / (self.zoom + 1)) - self.camera_y
         return dx, dy
 
     def center_camera_on_point(self, point):
-        box_width, box_height = self.surface_width/self.zoom, self.surface_height/self.zoom
+        box_width, box_height = self.width/self.zoom, self.height/self.zoom
         half_width, half_height = box_width/2, box_height/2
         x = point[0] - half_width
         y = point[1] - half_height
@@ -135,17 +154,6 @@ class ViewPort:
         world_x = (point[0] / self.zoom) + self.camera_x
         world_y = (point[1] / self.zoom) + self.camera_y
         return world_x, world_y
-
-
-class BasePanel:
-    def __init__(self, world, width, height, text_color, bg_color):
-        self.text_color = text_color
-        self.surface = pygame.Surface((width, height))
-        # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
-        self.width, self.height = width, height
-        self.world = world
-        self.writer = TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
-        self.bg_color = bg_color
 
 
 class InfoPanel(BasePanel):
@@ -279,23 +287,27 @@ class Simulation:
         else:
             view_port_width, view_port_height = 300, 300
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
+
         panel_text_color = (220, 220, 220)
         panel_bg_color = (10, 10, 10)
         panel_width = 85
         self.info_panel = InfoPanel(self.world, self.clock, panel_width,
                                     view_port_height, panel_text_color, panel_bg_color)
         self.bot_panel = BotPanel(self.world, panel_width, view_port_height, panel_text_color, panel_bg_color)
-        main_surface_width = view_port_width + self.info_panel.width + self.bot_panel.width
-        main_surface_height = view_port_height
+
         self.info_panel_position = ((0, 0), (self.info_panel.width, self.info_panel.height))
         self.view_port_position = ((self.info_panel.width, 0),
-                                   (self.view_port.surface_width, self.view_port.surface_height))
+                                   (self.view_port.width, self.view_port.height))
         self.bot_panel_position = ((self.view_port_position[0][0] + self.view_port_position[1][0], 0),
                                    (self.bot_panel.width, self.info_panel.height))
+
+        main_surface_width = view_port_width + self.info_panel.width + self.bot_panel.width
+        main_surface_height = view_port_height
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
         self.window_width, self.window_height = scale * main_surface_width, scale * main_surface_height
         # Create the simulation window
-        self.window = pygame.display.set_mode((self.window_width, self.window_height), pygame.DOUBLEBUF)
+        self.window = pygame.display.set_mode((self.window_width, self.window_height),
+                                              pygame.DOUBLEBUF | pygame.RESIZABLE)
         pygame.display.set_caption('NSS')
         self.paused = False
         self.running = True
@@ -324,13 +336,13 @@ class Simulation:
                 # Translate mouse relative to view port
                 # TODO: Reduce redundancy here
                 if self.mouse.mouse_button == 5:
-                    world_x, world_y = self.view_port.point_to_world((self.view_port.surface_width//2,
-                                                                      self.view_port.surface_height//2))
+                    world_x, world_y = self.view_port.point_to_world((self.view_port.width//2,
+                                                                      self.view_port.height//2))
                     self.view_port.zoom_out()
                     self.view_port.center_camera_on_point((world_x, world_y))
                 elif self.mouse.mouse_button == 4:
-                    world_x, world_y = self.view_port.point_to_world((self.view_port.surface_width//2,
-                                                                      self.view_port.surface_height//2))
+                    world_x, world_y = self.view_port.point_to_world((self.view_port.width//2,
+                                                                      self.view_port.height//2))
                     self.view_port.zoom_in()
                     self.view_port.center_camera_on_point((world_x, world_y))
                 if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
@@ -431,6 +443,31 @@ class Simulation:
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
+            elif event.type == pygame.VIDEORESIZE:
+                original_width = self.main_surface.get_width()
+                original_height = self.main_surface.get_height()
+                new_width, new_height = event.w, event.h
+                minimum_dimension = (self.info_panel.width * self.scale) * 2
+                if new_width > minimum_dimension and new_height > minimum_dimension:
+                    # Create a new master surface
+                    self.main_surface = pygame.display.set_mode((new_width, new_height),
+                                                                pygame.DOUBLEBUF | pygame.RESIZABLE)
+                    downscaled_new_width, downscaled_new_height = new_width//self.scale, new_height//self.scale
+                    # Resize panels to fit the new size
+                    self.info_panel.resize_surface((self.info_panel.width, downscaled_new_height))
+                    new_view_width = downscaled_new_width - self.info_panel.width - self.bot_panel.width
+                    new_view_height = downscaled_new_height
+                    self.view_port.resize_surface((new_view_width, new_view_height))
+                    self.bot_panel.resize_surface((self.bot_panel.width, downscaled_new_height))
+                    # Set the new positions
+                    self.info_panel_position = ((0, 0), (self.info_panel.get_size()))
+                    self.view_port_position = ((self.info_panel.width, 0), self.view_port.get_size())
+                    self.bot_panel_position = ((self.info_panel.width + self.view_port.width, 0),
+                                               (self.bot_panel.get_size()))
+                else:
+                    print("Cannot resize window to smaller than (%d, %d)" % (minimum_dimension, minimum_dimension))
+                    self.main_surface = pygame.display.set_mode((original_width, original_height),
+                                                                pygame.DOUBLEBUF | pygame.RESIZABLE)
 
     def draw_graphics(self):
         # Draw the various views to the window
@@ -460,6 +497,7 @@ class Simulation:
             self.main_surface.blit(mouse_surface, position)
         else:
             pygame.mouse.set_visible(True)
+        # Apply any macro-level scaling
         final_surface = self.main_surface
         if self.scale > 1:
             width, height = self.main_surface.get_width() * self.scale, self.main_surface.get_height() * self.scale
@@ -547,7 +585,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=175000)
+    earth = World(boundary_sizes=(250, 250), energy_pool=150000)
     start_behavior = create_basic_intelligence()
     print("Controls:")
     print(" Camera Mode: Keyboard Key '1'")
