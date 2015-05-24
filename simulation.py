@@ -362,25 +362,15 @@ class Simulation:
         if self.mouse.in_rectangle(self.view_port_position):
             mx, my = self.mouse.pos
             point_x, point_y = mx - self.view_port_position[0][0], my - self.view_port_position[0][1]
+            # TODO: Reduce redundancy here
             if self.mouse.current_mode == "camera":
                 # In view port
-                # Translate mouse relative to view port
-                # TODO: Reduce redundancy here
-                if self.mouse.mouse_button == 5:
-                    world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                              self.view_port.height//2))
-                    self.view_port.zoom_out()
-                    self.view_port.center_camera_on_point((world_x, world_y))
-                elif self.mouse.mouse_button == 4:
-                    world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                              self.view_port.height//2))
-                    self.view_port.zoom_in()
-                    self.view_port.center_camera_on_point((world_x, world_y))
                 if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
                     move = self.mouse.get_instant_diff()
                     offset_x = -move[0] / self.view_port.zoom
                     offset_y = -move[1] / self.view_port.zoom
                     self.view_port.move_camera_by_vector(offset_x, offset_y)
+                self._handle_scroll_wheel_zoom()
             elif self.mouse.current_mode == "bot-select":
                 if self.mouse.mouse_button == 1:
                     self.world.selected_bot = None
@@ -398,9 +388,23 @@ class Simulation:
                     if self.world.selected_bot:
                         print("Removing bot selection")
                         self.world.selected_bot = None
+                # Allow zooming in and out even in bot selection mode
+                self._handle_scroll_wheel_zoom()
         elif self.mouse.in_rectangle(self.info_panel_position):
                 # In info panel
                 pass
+
+    def _handle_scroll_wheel_zoom(self):
+        if self.mouse.mouse_button == 5:
+            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
+                                                                      self.view_port.height//2))
+            self.view_port.zoom_out()
+            self.view_port.center_camera_on_point((world_x, world_y))
+        elif self.mouse.mouse_button == 4:
+            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
+                                                                      self.view_port.height//2))
+            self.view_port.zoom_in()
+            self.view_port.center_camera_on_point((world_x, world_y))
 
     def mainloop(self):
         while self.running:
