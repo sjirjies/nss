@@ -1,0 +1,18 @@
+   ........     
+   .xx..xx..... 
+....xxx.xxx.xx..
+.xx..xx..xx.xxx.
+.xxx.xxx.xxx.xx.
+..xxx.xx..xx.xx.
+ ..xxxxxxxxxxxx.
+  ..xxxxxxxxxxx.
+....xxxxxxxxxxx.
+.xx..xxxxxxxxxx.
+.xxx.xxxxxxxxxx.
+..xxxxxxxxxxxxx.
+ ..xxxxxxxxxxxx.
+  ..xxxxxxxxxx..
+   ..xxxxxxxx.. 
+    ..........  
+8
+8 

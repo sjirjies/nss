@@ -349,12 +349,12 @@ class Simulation:
                 # TODO: Reduce redundancy here
                 if self.mouse.mouse_button == 5:
                     world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                      self.view_port.height//2))
+                                                                              self.view_port.height//2))
                     self.view_port.zoom_out()
                     self.view_port.center_camera_on_point((world_x, world_y))
                 elif self.mouse.mouse_button == 4:
                     world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                      self.view_port.height//2))
+                                                                              self.view_port.height//2))
                     self.view_port.zoom_in()
                     self.view_port.center_camera_on_point((world_x, world_y))
                 if self.mouse.mouse_motion and self.mouse.holding and self.mouse.in_rectangle(self.view_port_position):
@@ -500,15 +500,13 @@ class Simulation:
             line_start = (panel[0][0] + panel[1][0] - offset, panel[0][1])
             line_end = (line_start[0], line_start[1] + panel[1][1])
             pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
-        pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
         # Handle cursor graphics
+        # TODO: Cursor icons only need to be changes with the cursor enters or exits a panel, not every frame
         if self.mouse.in_rectangle(self.view_port_position):
-            pygame.mouse.set_visible(False)
-            mouse_surface, hotspot = self.mouse.modes[self.mouse.current_mode]
-            position = self.mouse.pos[0] - hotspot[0], self.mouse.pos[1] - hotspot[1]
-            self.main_surface.blit(mouse_surface, position)
+            size, hot_spot, cursor = self.mouse.modes[self.mouse.current_mode]
+            pygame.mouse.set_cursor(size, hot_spot, *cursor)
         else:
-            pygame.mouse.set_visible(True)
+            pygame.mouse.set_cursor(*pygame.cursors.arrow)
         # Apply any macro-level scaling
         final_surface = self.main_surface
         if self.scale > 1:
@@ -546,12 +544,25 @@ class Simulation:
             self.mouse_button = None
             self.mouse_motion = False
             self.button_pressed = (0, 0, 0)
-            camera_surface = pygame.image.load(os.getcwd() + os.sep + 'camera.png')
-            bot_select_surface = pygame.image.load(os.getcwd() + os.sep + 'bot-select.png')
-            # Make a dict of modes and their icons with the hotspot location
-            self.modes = {"camera": (camera_surface, (4, 4)),
-                          "bot-select": (bot_select_surface, (4, 4))}
+            self.modes = {}
+            # Make a dict of modes and their cursors with the hot-spot location
+            names_and_files = (('camera', 'camera_cursor.txt'),
+                               ('bot-select', 'bot-select_cursor.txt'))
+            for mode_name, file_name in names_and_files:
+                cursor_string, size, hot_spot = self._load_cursor(file_name)
+                cursor = pygame.cursors.compile(cursor_string, black='x', white='.')
+                self.modes[mode_name] = (size, hot_spot, cursor)
             self.current_mode = "camera"
+
+        def _load_cursor(self, file_name):
+            folder = os.getcwd() + os.sep
+            with open(folder + file_name) as cursor_file:
+                lines = cursor_file.readlines()
+                hot_y = int(lines.pop())
+                hot_x = int(lines.pop())
+                for i, line in enumerate(lines):
+                    lines[i] = line.rstrip("\n")
+                return lines, (len(lines[0]), len(lines)), (hot_x, hot_y)
 
         def change_mode(self, mode):
             if mode in self.modes:
