@@ -1,7 +1,7 @@
 import os
 import time
 import pygame
-from datetime import timedelta
+import datetime
 from world import World, WorldWatcher
 
 from sim_entities import *
@@ -20,7 +20,7 @@ import behavior_functions
 # TODO: Improve the APIs
 
 
-def create_basic_intelligence():
+def create_basic_brain():
     check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
     create_clone_node = StatementNode(behavior_functions.create_clone)
     launch_signal_node = StatementNode(behavior_functions.launch_signal)
@@ -46,6 +46,24 @@ def create_basic_intelligence():
                                check_signal_found_food_node, wait_node,move_to_target_node, check_at_target_node,
                                eat_node, check_active_signal_node]
     behavior.set_entry_node(launch_signal_node)
+    return behavior
+
+
+def create_very_simple_brain():
+    check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
+    create_clone_node = StatementNode(behavior_functions.create_clone)
+    eat_node = StatementNode(behavior_functions.eat_nearby_plants)
+    target_node = StatementNode(behavior_functions.set_random_target)
+    move_target_node = StatementNode(behavior_functions.move_towards_target)
+
+    target_node.assign_edge(move_target_node)
+    move_target_node.assign_edge(eat_node)
+    eat_node.assign_edge(check_reproduce_node)
+    check_reproduce_node.assign_edges(create_clone_node, target_node)
+    create_clone_node.assign_edge(target_node)
+    behavior = BehaviorGraph()
+    behavior.behavior_nodes = [check_reproduce_node, create_clone_node, eat_node, target_node, move_target_node]
+    behavior.set_entry_node(target_node)
     return behavior
 
 
@@ -203,7 +221,7 @@ class InfoPanel(BasePanel):
         data = []
         data.append(self.world.tick_number)
         seconds = int(self.world.time)
-        data.append(str(timedelta(seconds=seconds)))
+        data.append(str(datetime.timedelta(seconds=seconds)))
         data.append(round(self.clock.get_fps(), 2))
         if self.world.energy_pool is not None:
             data.append(self.world.energy_pool)
@@ -223,7 +241,8 @@ class BotPanel(BasePanel):
     def _position_labels(self):
         x = 7
         y = 22
-        labels = ["Name", "Position", "Energy", "Peak Energy", "Generation", "Birthday", "Age", "Children"]
+        labels = ["Name", "Position", "Energy", "Peak Energy", "Generation", "Birthday", "Age", "Children",
+                  "Brain Size"]
         positions = []
         for index, label in enumerate(labels):
             positions.append((label, (x, (index+1)*y)))
@@ -247,10 +266,10 @@ class BotPanel(BasePanel):
         if self.world.selected_bot:
             bot = self.world.selected_bot
             data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
-                    bot.generation_number, bot.birthday, bot.age, bot.number_children]
+                    bot.generation_number, bot.birthday, bot.age, bot.number_children, len(bot.behavior.behavior_nodes)]
             return data
         else:
-            return ['-' for _ in range(8)]
+            return ['-' for _ in range(9)]
 
 
 class TextWriter:
@@ -443,6 +462,15 @@ class Simulation:
                 elif key == pygame.K_2:
                     self.mouse.change_mode("bot-select")
                     print("Entered 'bot-select' mode")
+                elif key == pygame.K_3:
+                    # Save the intelligence graph of the selected bot
+                    print("Saving brain of currently selected bot...")
+                    folder = os.getcwd() + os.sep + 'brain_graphs' + os.sep
+                    if not os.path.exists(folder):
+                        os.makedirs(folder)
+                    if self.world.selected_bot:
+                        file = folder + "brain_" + str(datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S"))
+                        WorldWatcher.save_bot_intelligence(self.world.selected_bot, file)
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self.mouse.mouse_button = event.button
@@ -609,7 +637,8 @@ class Simulation:
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(250, 250), energy_pool=150000)
-    start_behavior = create_basic_intelligence()
+    basic_brain = create_basic_brain()
+    minimal_brain = create_very_simple_brain()
     print("Controls:")
     print(" Camera Mode: Keyboard Key '1'")
     print("   Mouse wheel zoom, left drag to pan")
@@ -618,5 +647,6 @@ if __name__ == '__main__':
     print("   Right button to de-select")
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
-    Simulation(earth, 500, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
+    print(" Pressing Keyboard Key 3 with selected bot saves its brain")
+    Simulation(earth, 500, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
 

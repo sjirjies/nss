@@ -384,7 +384,8 @@ class WorldWatcher:
         title = "Name: %s\nBorn: %s, Generation: %s, Age: %s\nPeak Energy: %s, Children: %s, Brain Size: %s" %\
                 (str(bot), str(bot.birthday), str(bot.generation_number), str(bot.age),
                  str(bot.peak_energy), str(bot.number_children), str(len(bot.behavior.behavior_nodes)))
-        graph = gv.Digraph(format='svg',  name=title, graph_attr={'label': title, 'ratio': 'auto', 'labelloc': 'b'})
+        graph = gv.Digraph(format='svg',  name=title, graph_attr={'label': title, 'ratio': 'auto', 'labelloc': 'b',
+                                                                  'mode': 'major'})
         behavior_nodes = bot.behavior.behavior_nodes
         functions = [node.function for node in behavior_nodes]
         attributes = {'fontsize': '8'}

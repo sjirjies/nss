@@ -1,2 +1,5 @@
 *.pyc
+brain_graphs/*
+
+# Ignore PyCharm files
 .idea/*
