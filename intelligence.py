@@ -107,12 +107,17 @@ class ConditionalNode(BaseBehaviorNode):
 class BehaviorGraph:
     def __init__(self):
         self.behavior_nodes = []
+        self.entry_node = None
         self.current_behavior_node = None
 
     def step(self, bot):
         if self.current_behavior_node is None:
             raise ValueError("Current node must be a function, not None. (Bot: %s)" % bot)
         self.current_behavior_node = self.current_behavior_node.execute(bot)
+
+    def set_entry_node(self, entry_node):
+        self.entry_node = entry_node
+        self.current_behavior_node = entry_node
 
     def return_tree_copy(self):
         return copy.deepcopy(self)
@@ -133,9 +138,8 @@ class BehaviorGraph:
             else:
                 node.true_node = choice(self.behavior_nodes)
                 node.false_node = choice(self.behavior_nodes)
-        # Now pic a random current behavior node
-        self.current_behavior_node = choice(self.behavior_nodes)
-
+        # Now pic a random entry node
+        self.set_entry_node(choice(self.behavior_nodes))
 
     def mutate_behavior(self):
         mutation_type = np.random.random_integers(0, 3)

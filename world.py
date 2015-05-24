@@ -11,6 +11,20 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 from intelligence import NodeRegister
 
+graphviz_installed = False
+networkx_installed = False
+try:
+    import graphviz as gv
+    graphviz_installed = True
+except:
+    graphviz_installed = False
+    print("Could not load graphviz moodule")
+    try:
+        import networkx as nx
+        networkx_installed = True
+    except:
+        print("Also could not load networkx module")
+        print("Intelligence graphing is disabled")
 
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
@@ -319,45 +333,90 @@ class WorldWatcher:
                       self.world.tick_number, world_width, world_height, bot_limit, plant_limit, energy_pool,
                       round(time.time() - self.start_time, 1), today, hour_min)
             writer.writerow(dict(zip(self.fieldnames, values)))
-        self.save_bot_intelligence(best)
+        WorldWatcher.save_bot_intelligence(best, os.getcwd() + os.sep + 'metrics' + os.sep + 'intelligence_graph')
 
-    def save_bot_intelligence(self, bot):
-        has_network_x = True
-        try:
-            import networkx as nx
-        except ImportError:
-            print("Could not load Networkx module. Skipping intelligence graph creation.")
-            has_network_x = False
-        if has_network_x:
-            # TODO: Make BehaviorGraph track the launch node and mark it in the graph output
-            print("Saving Champion Intelligence Graph...")
-            behavior_nodes = bot.behavior.behavior_nodes
-            network = nx.DiGraph()
-            network.add_nodes_from(behavior_nodes)
-            # Add the behavior nodes to the network and link them together
-            for node in behavior_nodes:
-                if node.node_type == NodeRegister.statement:
-                    network.add_edge(node, node.next_node, label='')
-                elif node.node_type == NodeRegister.conditional:
-                    network.add_edge(node, node.true_node, label='1')
-                    network.add_edge(node, node.false_node, label='0')
-            # Draw the network
-            layout = nx.shell_layout(network, scale=3)
-            plt.figure(figsize=(10, 10))
-            plt.axis('equal')
-            plt.title("%s: Born:%s, Age:%s, Peak Energy:%s, Children:%s" %
-                      (str(bot), str(bot.birthday), str(bot.age), str(bot.peak_energy), str(bot.number_children)))
-            nx.draw_networkx_edges(network, layout, width=0.5, alpha=0.75, edge_color='black', arrows=True)
-            statement_color = '#D7E7F7'
-            conditional_color = '#F7D7DA'
-            colors = [statement_color if node.node_type == NodeRegister.statement else conditional_color
-                      for node in network.nodes()]
-            nx.draw_networkx_nodes(network, layout, node_size=1800, node_color=colors, alpha=1)
-            # Reformat node names to make them easier to read
-            names = [(node, str(node.function.__name__).replace('_', '\n')) for node in behavior_nodes]
-            labels = {key: value for (key, value) in names}
-            nx.draw_networkx_labels(network, layout, labels, font_size=10, font_family='sans-serif')
-            edge_names = nx.get_edge_attributes(network, 'label')
-            nx.draw_networkx_edge_labels(network, layout, edge_labels=edge_names, label_pos=0.7)
-            plt.axis('off')
-            plt.savefig(self.directory + os.sep + 'intelligence_graph.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
+    @staticmethod
+    def save_bot_intelligence(bot, file_path):
+        if graphviz_installed:
+            WorldWatcher._graph_intelligence_gv(bot, file_path)
+        elif networkx_installed:
+            WorldWatcher._graph_intelligence_nx(bot, file_path)
+        else:
+            print("Cannot save intelligence: no graph module found")
+
+    @staticmethod
+    def _graph_intelligence_nx(bot, file_path):
+        # TODO: Make BehaviorGraph track the launch node and mark it in the graph output
+        print("Saving Champion Intelligence Graph...")
+        behavior_nodes = bot.behavior.behavior_nodes
+        network = nx.DiGraph()
+        network.add_nodes_from(behavior_nodes)
+        # Add the behavior nodes to the network and link them together
+        for node in behavior_nodes:
+            if node.node_type == NodeRegister.statement:
+                network.add_edge(node, node.next_node, label='')
+            elif node.node_type == NodeRegister.conditional:
+                network.add_edge(node, node.true_node, label='1')
+                network.add_edge(node, node.false_node, label='0')
+        # Draw the network
+        layout = nx.shell_layout(network, scale=3)
+        plt.figure(figsize=(10, 10))
+        plt.axis('equal')
+        plt.title("%s: Born:%s, Age:%s, Peak Energy:%s, Children:%s" %
+                  (str(bot), str(bot.birthday), str(bot.age), str(bot.peak_energy), str(bot.number_children)))
+        nx.draw_networkx_edges(network, layout, width=0.5, alpha=0.75, edge_color='black', arrows=True)
+        statement_color = '#D7E7F7'
+        conditional_color = '#F7D7DA'
+        colors = [statement_color if node.node_type == NodeRegister.statement else conditional_color
+                  for node in network.nodes()]
+        nx.draw_networkx_nodes(network, layout, node_size=1800, node_color=colors, alpha=1)
+        # Reformat node names to make them easier to read
+        names = [(node, str(node.function.__name__).replace('_', '\n')) for node in behavior_nodes]
+        labels = {key: value for (key, value) in names}
+        nx.draw_networkx_labels(network, layout, labels, font_size=10, font_family='sans-serif')
+        edge_names = nx.get_edge_attributes(network, 'label')
+        nx.draw_networkx_edge_labels(network, layout, edge_labels=edge_names, label_pos=0.7)
+        plt.axis('off')
+        plt.savefig(file_path + '.png', dpi=80, pad_inches=0.0, bbox_inches='tight')
+
+    @staticmethod
+    def _graph_intelligence_gv(bot, file_path):
+        title = "Name: %s\nBorn: %s, Generation: %s, Age: %s\nPeak Energy: %s, Children: %s, Brain Size: %s" %\
+                (str(bot), str(bot.birthday), str(bot.generation_number), str(bot.age),
+                 str(bot.peak_energy), str(bot.number_children), str(len(bot.behavior.behavior_nodes)))
+        graph = gv.Digraph(format='svg',  name=title, graph_attr={'label': title, 'ratio': 'auto', 'labelloc': 'b'})
+        behavior_nodes = bot.behavior.behavior_nodes
+        functions = [node.function for node in behavior_nodes]
+        attributes = {'fontsize': '8'}
+        statement_color = '#182BA6'
+        conditional_color = '#A61835'
+        statement_attributes = dict(attributes)
+        statement_attributes['fillcolor'] = statement_color
+        statement_attributes['color'] = statement_color
+        conditional_attributes = dict(attributes)
+        conditional_attributes['fillcolor'] = conditional_color
+        conditional_attributes['color'] = conditional_color
+        entry_attributes = dict(attributes)
+        entry_attributes['style'] = 'filled'
+        entry_attributes['fillcolor'] = '#DEDEDE'
+        names = {}
+        for index, node in enumerate(behavior_nodes):
+            node_name = str(node.function.__name__).replace('_', '\n')
+            if node.function in functions[:index]:
+                count = functions.count(node.function)
+                node_name += '_' + str(count)
+            names[node] = node_name
+            attr = statement_attributes if node.node_type == NodeRegister.statement else conditional_attributes
+            if node is bot.behavior.entry_node:
+                attr = entry_attributes
+                attr['color'] = statement_color if node.node_type == NodeRegister.statement else conditional_color
+            graph.node(node_name, _attributes=attr)
+        for node in behavior_nodes:
+            if node.node_type == NodeRegister.statement:
+                graph.edge(names[node], names[node.next_node], _attributes=statement_attributes)
+            else:
+                graph.edge(names[node], names[node.true_node], 'T', _attributes=conditional_attributes)
+                graph.edge(names[node], names[node.false_node], 'F', _attributes=conditional_attributes)
+        graph.render(file_path)
+        # Remove the temporary file created by graphviz
+        os.remove(file_path)

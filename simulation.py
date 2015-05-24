@@ -45,7 +45,7 @@ def create_basic_intelligence():
     behavior.behavior_nodes = [launch_signal_node, check_reproduce_node, create_clone_node,
                                check_signal_found_food_node, wait_node,move_to_target_node, check_at_target_node,
                                eat_node, check_active_signal_node]
-    behavior.current_behavior_node = launch_signal_node
+    behavior.set_entry_node(launch_signal_node)
     return behavior
 
 
@@ -333,7 +333,7 @@ class Simulation:
         self.seed_plants(plant_growth_ticks)
         # Populate the world with bots
         print("Adding bots...")
-        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=8)
+        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=10)
         # TODO: Account for paused time in the WorldWatcher results
         # Create a mouse handler and enter mainloop
         self.mouse = self.MouseHandler(self.scale)
@@ -615,6 +615,8 @@ if __name__ == '__main__':
     print("   Mouse wheel zoom, left drag to pan")
     print(" Bot-Select Mode: Keyboard Key '2'")
     print("   Left button to select")
+    print("   Right button to de-select")
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
-    Simulation(earth, 500, 150, 250, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
+    Simulation(earth, 500, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=start_behavior)
+
