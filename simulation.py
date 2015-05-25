@@ -8,15 +8,11 @@ from sim_entities import *
 import behavior_functions
 
 # TODO: Convert to an MVC model
-#   - Get rid of graphical vs non-graphical mode
 #   - Create a Model, which is the simulation
 #   - Create a View that reads from World
 #   - Create a Controller that uses the World API
-# TODO: Have signals carry the location of their origination
 # TODO: Have signals carry a 'message number' from 0-3
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
-# TODO: Create a Camera that can be panned and zoomed
-# TODO: Create a right-pane that displays world information and trends
 # TODO: Improve the APIs
 
 
@@ -25,7 +21,7 @@ def create_basic_brain():
     create_clone_node = StatementNode(behavior_functions.create_clone)
     launch_signal_node = StatementNode(behavior_functions.launch_signal)
     check_active_signal_node = ConditionalNode(behavior_functions.signal_exists)
-    check_signal_found_food_node = ConditionalNode(behavior_functions.has_signal_found_food)
+    check_signal_found_food_node = ConditionalNode(behavior_functions.has_signal_found_plant)
     wait_node = StatementNode(behavior_functions.wait)
     move_to_target_node = StatementNode(behavior_functions.move_towards_target)
     check_at_target_node = ConditionalNode(behavior_functions.target_nearby)
@@ -43,7 +39,7 @@ def create_basic_brain():
 
     behavior = BehaviorGraph()
     behavior.behavior_nodes = [launch_signal_node, check_reproduce_node, create_clone_node,
-                               check_signal_found_food_node, wait_node,move_to_target_node, check_at_target_node,
+                               check_signal_found_food_node, wait_node, move_to_target_node, check_at_target_node,
                                eat_node, check_active_signal_node]
     behavior.set_entry_node(launch_signal_node)
     return behavior
@@ -138,7 +134,7 @@ class ViewPort(BasePanel):
         t = 0 if fill_it else 1
         diameter = self.zoom
         if not fill_it:
-            diameter += 1
+            diameter += 2
         x, y = self.world_point_to_surface((entity.x, entity.y))
         if self.zoom == 1:
             pixel_array[x][y] = entity_color

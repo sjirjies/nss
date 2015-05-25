@@ -20,7 +20,7 @@ def create_clone(bot):
     # Let's require the bot to have energy before it can do this
     if bot.energy > 0:
         # First the parent bot must pay an energy tax
-        bot.world.drain_energy_from_entity(10, bot)
+        bot.world.drain_energy_from_entity(5, bot)
         child_behavior = bot.behavior.return_tree_copy()
         # If is the second or greater child, then possible mutate the behavior
         if bot.number_children >= 2:
@@ -52,7 +52,7 @@ def wait(bot):
     pass
 
 @conditional
-def has_signal_found_food(bot):
+def has_signal_found_plant(bot):
     if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
         for item in bot.signal.detected_objects:
             # TODO: get rid of isinstance and use something better

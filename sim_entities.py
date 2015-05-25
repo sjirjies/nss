@@ -111,6 +111,7 @@ class Signal(BaseSimulationEntity):
     def __init__(self, x, y, owner, name=None, color=None):
         super().__init__(x, y)
         self.owner = owner
+        self.origination_pos = owner.x, owner.y
         self.world = owner.world
         self.detected_objects = []
         self.diameter = 8

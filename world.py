@@ -212,6 +212,7 @@ class World:
 
 
 class WorldWatcher:
+    # TODO: Have info polling reduce data size through averaging when it becomes too large
     def __init__(self, world):
         # TODO: Get time from world
         self.start_time = time.time()
@@ -225,6 +226,7 @@ class WorldWatcher:
         self.directory = os.getcwd() + os.sep + 'metrics'
         self.hall_champions_file_path = self.directory + os.sep + 'hall_of_champions.csv'
         self.champions_intel_file_path = self.directory + os.sep + 'champions_intelligence.txt'
+        self.bot_compare_function = WorldWatcher.default_bot_compare
         # Create the metrics directory if it does not exist.
         if not os.path.exists(self.directory):
             print("Making metrics directory...")
@@ -245,13 +247,14 @@ class WorldWatcher:
             data_list.append(len(world_list))
         for bot in self.world.recently_dead_bots:
             # Compare the recently deceased bot to the current best and return the better
-            self.keep_better_bot(self.best_bot, bot)
+            self.best_bot = self.bot_compare_function(self.best_bot, bot)
 
-    def keep_better_bot(self, first_bot, second_bot):
+    @staticmethod
+    def default_bot_compare(first_bot, second_bot):
         if first_bot.peak_energy > second_bot.peak_energy:
-            self.best_bot = first_bot
+            return first_bot
         else:
-            self.best_bot = second_bot
+            return second_bot
 
     def save_metrics(self):
         self.graph_population_data()
@@ -314,7 +317,7 @@ class WorldWatcher:
     def save_champion_bot_data(self):
         # First find if any of the still alive bots are better
         for bot in self.world.bots:
-            self.keep_better_bot(self.best_bot, bot)
+            self.best_bot = self.bot_compare_function(self.best_bot, bot)
         best = self.best_bot
         today = time.strftime('%Y-%m-%d')
         hour_min = time.strftime('%H:%M')
@@ -384,8 +387,7 @@ class WorldWatcher:
         title = "Name: %s\nBorn: %s, Generation: %s, Age: %s\nPeak Energy: %s, Children: %s, Brain Size: %s" %\
                 (str(bot), str(bot.birthday), str(bot.generation_number), str(bot.age),
                  str(bot.peak_energy), str(bot.number_children), str(len(bot.behavior.behavior_nodes)))
-        graph = gv.Digraph(format='svg',  name=title, graph_attr={'label': title, 'ratio': 'auto', 'labelloc': 'b',
-                                                                  'mode': 'major'})
+        graph = gv.Digraph(format='svg',  name=title, graph_attr={'label': title, 'ratio': '1', 'labelloc': 'b'})
         behavior_nodes = bot.behavior.behavior_nodes
         functions = [node.function for node in behavior_nodes]
         attributes = {'fontsize': '8'}
