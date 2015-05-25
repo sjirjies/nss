@@ -95,7 +95,7 @@ def eat_nearby_plants(bot):
 @statement
 def create_local_signal(bot):
     bot.signal = StaticSignal(bot.x, bot.y, bot, color=(40, 40, 180))
-    bot.signal.diameter = 16
+    bot.signal.diameter = 24
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
 
 
@@ -103,7 +103,7 @@ def create_local_signal(bot):
 def create_long_range_signal(bot):
     # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
     bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(150, 190, 240))
-    bot.signal.diameter = 2
+    bot.signal.diameter = 5
     bot.world.transfer_energy_between_entities(25, donor=bot, recipient=bot.signal)
 
 
@@ -117,7 +117,7 @@ def eat_nearby_bots(bot):
     if bot.signal:
         bot.signal.dead = True
     bot.signal = StaticSignal(bot.x, bot.y, bot, color=(240, 90, 90))
-    bot.signal.diameter = 4
+    bot.signal.diameter = 6
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
     bot.signal.step()
     if bot.signal.detected_objects:
@@ -153,7 +153,7 @@ def eat_nearby_signal(bot):
     if bot.signal:
         bot.signal.dead = True
     bot.signal = StaticSignal(bot.x, bot.y, bot, color=(130, 130, 230))
-    bot.signal.diameter = 4
+    bot.signal.diameter = 6
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
     bot.signal.step()
     if bot.signal.detected_objects:

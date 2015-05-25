@@ -636,7 +636,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=150000)
+    earth = World(boundary_sizes=(250, 250), energy_pool=350000, plant_limit=750)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -648,5 +648,5 @@ if __name__ == '__main__':
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
-    Simulation(earth, 500, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
+    Simulation(earth, 1000, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
 
