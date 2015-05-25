@@ -32,8 +32,8 @@ class Bot(BaseSimulationEntity):
         super().__init__(x_start, y_start)
         self.behavior = behavior_graph
         self.speed = 1
-        self.child_investment = 200
-        self.max_age = 10000
+        self.child_investment = 600
+        self.max_age = 5000
         self.peak_energy = 0
         self.generation_number = generation_number
         self.target_point = x_start, y_start
@@ -73,11 +73,11 @@ class Plant(BaseSimulationEntity):
         self.age = 0
         self.max_age = 2000
         self.max_energy = 600
-        self.growth_rate = 20
+        self.growth_rate = 15
         self.child_investment = 100
         self.spore_min_travel = 10
         self.spore_max_travel = 80
-        self.percent_reproduction_chance = 2
+        self.percent_reproduction_chance = 5
 
     def step(self):
         # Check if the plant can grow

@@ -1,4 +1,3 @@
-from numpy.random import random_integers
 from intelligence import statement, conditional
 from sim_entities import Plant, Bot, MobileSignal, StaticSignal, Signal
 
@@ -81,6 +80,7 @@ def eat_nearby_plants(bot):
     if bot.signal:
         bot.signal.dead = True
     bot.signal = StaticSignal(bot.x, bot.y, bot, color=(120, 240, 130))
+    bot.signal.diameter = 6
     bot.world.transfer_energy_between_entities(3, donor=bot, recipient=bot.signal)
     bot.signal.step()
     if bot.signal.detected_objects:
@@ -103,7 +103,7 @@ def create_local_signal(bot):
 def create_long_range_signal(bot):
     # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
     bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(150, 190, 240))
-    bot.signal.diameter = 5
+    bot.signal.diameter = 4
     bot.world.transfer_energy_between_entities(25, donor=bot, recipient=bot.signal)
 
 
@@ -160,3 +160,21 @@ def eat_nearby_signal(bot):
         for entity in bot.signal.detected_objects:
             if isinstance(entity, Signal) and entity is not bot.signal:
                 bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
+
+@statement
+def create_sniper_signal(bot):
+    # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
+    bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(190, 220, 240))
+    bot.signal.diameter = 2
+    bot.world.transfer_energy_between_entities(50, donor=bot, recipient=bot.signal)
+
+@conditional
+def random_choice(bot):
+    return random_integers(0, 1)
+
+@conditional
+def very_low_energy(bot):
+    if bot.energy < 100:
+        return True
+    return False
+

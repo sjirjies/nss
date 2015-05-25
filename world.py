@@ -187,7 +187,7 @@ class World:
             if self.energy_pool < bot_energy:
                 print("Not enough free energy for even a single bot.")
                 print("Deleting food until there is enough free energy.")
-                while (10 * bot_energy) > self.energy_pool:
+                while (number_bots * bot_energy) > self.energy_pool:
                     plant = self.plants.pop()
                     self.energy_pool += plant.energy
         # Populate the world with bots

@@ -85,8 +85,6 @@ class ViewPort(BasePanel):
     def __init__(self, world, width, height, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
         super(ViewPort, self).__init__(world, width, height, text_color, bg_color)
         self.world = world
-        self.width = width
-        self.height = height
         self.surface = pygame.Surface((width, height))
         self.camera_x = 0
         self.camera_y = 0
@@ -454,8 +452,11 @@ class Simulation:
                 elif key == pygame.K_DOWN:
                     self.view_port.move_camera_by_vector(0, 10)
                 elif key == pygame.K_0:
-                    self.view_port.move_camera_to_coordinates(0, 0)
                     self.view_port.zoom = 1
+                    x, y = 0, 0
+                    if self.world.boundary_sizes:
+                        x, y = self.world.boundary_sizes[0]/2, self.world.boundary_sizes[1]/2
+                    self.view_port.center_camera_on_point((x, y))
                 elif key == pygame.K_1:
                     self.mouse.change_mode("camera")
                     print("Entered 'camera' mode")
@@ -504,6 +505,10 @@ class Simulation:
                     self.view_port_position = ((self.info_panel.width, 0), self.view_port.get_size())
                     self.bot_panel_position = ((self.info_panel.width + self.view_port.width, 0),
                                                (self.bot_panel.get_size()))
+                    # Center the world if using boundaries
+                    if self.world.boundary_sizes:
+                        x, y = self.world.boundary_sizes
+                        self.view_port.center_camera_on_point((x/2, y/2))
                 else:
                     print("Cannot resize window to smaller than (%d, %d)" % (minimum_dimension, minimum_dimension))
                     self.main_surface = pygame.display.set_mode((original_width, original_height),
@@ -636,7 +641,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=350000, plant_limit=750)
+    earth = World(boundary_sizes=(250, 250), energy_pool=300000, plant_limit=800)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -648,5 +653,5 @@ if __name__ == '__main__':
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
-    Simulation(earth, 1000, 100, 200, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
+    Simulation(earth, 500, 100, 100, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
 
