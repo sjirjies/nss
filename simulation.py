@@ -93,11 +93,11 @@ class ViewPort(BasePanel):
         self.zoom = 1
 
     def zoom_in(self):
-        self.zoom += 1
+        self.zoom *= 2
 
     def zoom_out(self):
         if self.zoom >= 2:
-            self.zoom -= 1
+            self.zoom //= 2
 
     def point_is_visible(self, point):
         visible_x = self.camera_x <= point[0] < (self.width / self.zoom) + self.camera_x
@@ -305,7 +305,7 @@ class Simulation:
         # Set an environment variable to center the pygame screen
         # TODO: Move display stuff into the View
         self.world = world
-        os.environ['SDL_VIDEO_CENTERED'] = '1'
+        # os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         self.clock = pygame.time.Clock()
         # Set up the different views
