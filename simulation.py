@@ -123,7 +123,6 @@ class ViewPort(BasePanel):
                 age_ratio = plant.age/plant.max_age
                 plant_age_color = (40 - int(20*age_ratio), 240 - int(200*age_ratio), 40 - int(20*age_ratio))
                 self._draw_plant_or_bot(pixels, plant, plant_energy_color, plant_age_color, None, True)
-        # TODO: Draw some kind of dim halo around bots with an age less than 10 to id neonates
         for bot in self.world.bots:
             if self.point_is_visible((bot.x, bot.y)):
                 age_ratio = bot.age/bot.max_age
