@@ -90,6 +90,7 @@ class ViewPort(BasePanel):
         self.camera_x = 0
         self.camera_y = 0
         self.zoom = 1
+        self.draw_signals = True
 
     def zoom_in(self):
         self.zoom *= 2
@@ -109,20 +110,22 @@ class ViewPort(BasePanel):
         self.surface.unlock()
         pixels = pygame.surfarray.pixels3d(self.surface)
         # TODO: Use HSV color space instead of RBG to simplify all of this
-        for signal in self.world.signals:
-            if self.point_is_visible((signal.x, signal.y)):
-                diameter = signal.diameter
-                left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
-                top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
-                signal_color = signal.color if signal.color else (75, 75, 75)
-                pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
+        if self.draw_signals:
+            for signal in self.world.signals:
+                if self.point_is_visible((signal.x, signal.y)):
+                    diameter = signal.diameter
+                    left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
+                    top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
+                    signal_color = signal.color if signal.color else (75, 75, 75)
+                    pygame.draw.ellipse(self.surface, signal_color,
+                                        (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         for plant in self.world.plants:
             if self.point_is_visible((plant.x, plant.y)):
                 energy_ratio = plant.energy/plant.max_energy
                 plant_energy_color = (int(40 * energy_ratio), int(240 * energy_ratio), int(40 * energy_ratio))
                 age_ratio = plant.age/plant.max_age
                 plant_age_color = (40 - int(20*age_ratio), 240 - int(200*age_ratio), 40 - int(20*age_ratio))
-                self._draw_plant_or_bot(pixels, plant, plant_energy_color, plant_age_color, None, True)
+                self._draw_plant_or_bot(pixels, plant, plant_energy_color, plant_age_color, True)
         for bot in self.world.bots:
             if self.point_is_visible((bot.x, bot.y)):
                 age_ratio = bot.age/bot.max_age
@@ -133,13 +136,13 @@ class ViewPort(BasePanel):
                 energy_ratio = 1000 - bot.energy
                 bot_energy_color = (220, 60, 220) if bot.energy > 1000 \
                     else (220-int(energy_ratio*(200/1000)), 60-int(energy_ratio*(50/1000)), 220-int(energy_ratio*(200/1000)))
-                self._draw_plant_or_bot(pixels, bot, bot_energy_color, bot_age_color, None, True)
+                self._draw_plant_or_bot(pixels, bot, bot_energy_color, bot_age_color, True)
         # Draw a selection outline if a bot is selected
         if self.world.selected_bot:
-            self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), (255, 255, 255), None, False)
+            self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), (255, 255, 255), False)
         del pixels
 
-    def _draw_plant_or_bot(self, pixel_array, entity, entity_color, energy_color, newborn_color, selected_color):
+    def _draw_plant_or_bot(self, pixel_array, entity, entity_color, energy_color, selected_color):
         t = 0 if selected_color else 1
         diameter = self.zoom
         if not selected_color:
@@ -486,6 +489,10 @@ class Simulation:
                     if self.world.selected_bot:
                         file = folder + "brain_" + str(datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S"))
                         WorldWatcher.save_bot_intelligence(self.world.selected_bot, file)
+                elif key == pygame.K_4:
+                    # Toggle rendering of signals in the view port
+                    self.view_port.draw_signals = False if self.view_port.draw_signals else True
+                    print("Toggled Signal rendering")
             # Handle mouse control
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self.mouse.mouse_button = event.button
@@ -667,5 +674,6 @@ if __name__ == '__main__':
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
+    print(" Press Keyboard Key 4 to toggle Signal rendering")
     Simulation(earth, 500, 50, 100, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
 
