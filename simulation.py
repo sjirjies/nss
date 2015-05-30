@@ -108,6 +108,7 @@ class ViewPort(BasePanel):
         self.surface.lock()
         self.surface.unlock()
         pixels = pygame.surfarray.pixels3d(self.surface)
+        # TODO: Use HSV color space instead of RBG to simplify all of this
         for signal in self.world.signals:
             if self.point_is_visible((signal.x, signal.y)):
                 diameter = signal.diameter
@@ -117,41 +118,51 @@ class ViewPort(BasePanel):
                 pygame.draw.ellipse(self.surface, signal_color, (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         for plant in self.world.plants:
             if self.point_is_visible((plant.x, plant.y)):
-                ratio = plant.energy/plant.max_energy
-                plant_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
-                self._draw_plant_or_bot(pixels, plant, plant_color, True)
-        # TODO: Color outer 3rd of bot circle for hunger and inner portion for age
+                energy_ratio = plant.energy/plant.max_energy
+                plant_energy_color = (int(40 * energy_ratio), int(240 * energy_ratio), int(40 * energy_ratio))
+                age_ratio = plant.age/plant.max_age
+                plant_age_color = (40 - int(20*age_ratio), 240 - int(200*age_ratio), 40 - int(20*age_ratio))
+                self._draw_plant_or_bot(pixels, plant, plant_energy_color, plant_age_color, None, True)
         # TODO: Draw some kind of dim halo around bots with an age less than 10 to id neonates
         for bot in self.world.bots:
             if self.point_is_visible((bot.x, bot.y)):
-                ratio = bot.age/bot.max_age
-                bot_color = (220 - int(150*ratio), 60 - int(40*ratio), 220 - int(150*ratio))
-                self._draw_plant_or_bot(pixels, bot, bot_color, True)
+                age_ratio = bot.age/bot.max_age
+                if bot.age <= 10:
+                    bot_age_color = (30, 40, 250)
+                else:
+                    bot_age_color = (220 - int(150*age_ratio), 60 - int(40*age_ratio), 220 - int(150*age_ratio))
+                energy_ratio = 1000 - bot.energy
+                bot_energy_color = (220, 60, 220) if bot.energy > 1000 \
+                    else (220-int(energy_ratio*(200/1000)), 60-int(energy_ratio*(50/1000)), 220-int(energy_ratio*(200/1000)))
+                self._draw_plant_or_bot(pixels, bot, bot_energy_color, bot_age_color, None, True)
         # Draw a selection outline if a bot is selected
         if self.world.selected_bot:
-            self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), False)
+            self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), (255, 255, 255), None, False)
         del pixels
 
-    def _draw_plant_or_bot(self, pixel_array, entity, entity_color, fill_it):
-        t = 0 if fill_it else 1
+    def _draw_plant_or_bot(self, pixel_array, entity, entity_color, energy_color, newborn_color, selected_color):
+        t = 0 if selected_color else 1
         diameter = self.zoom
-        if not fill_it:
+        if not selected_color:
             diameter += 2
+        if diameter == 3:
+            diameter += 1
         x, y = self.world_point_to_surface((entity.x, entity.y))
         if self.zoom == 1:
             pixel_array[x][y] = entity_color
-            if not fill_it:
+            if not selected_color:
                 for border_x, border_y in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
                     px = x + border_x
                     py = y + border_y
                     pixel_array[px][py] = (255, 255, 255)
         elif self.zoom <= 2:
             pygame.draw.rect(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
-        elif self.zoom == 3:
-            diameter += 1
+        elif 3 <= self.zoom < 8:
             pygame.draw.ellipse(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
         else:
             pygame.draw.ellipse(self.surface, entity_color, (x - diameter//2, y - diameter//2, diameter, diameter), t)
+            pygame.draw.ellipse(self.surface, energy_color,
+                                (x - diameter//4, y - diameter//4, diameter//2, diameter//2), 0)
 
     def track_selected_bot(self):
         if self.world.selected_bot:
