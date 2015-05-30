@@ -6,7 +6,15 @@ import math
 
 ##########################################
 # These functions are provided by default.
+# Still feel free to modify them
 ##########################################
+
+def _check_detected_entity_type(signal, entity_type, exclude=None):
+    if signal and signal.detected_objects and signal.energy > 0:
+        for item in signal.detected_objects:
+            if isinstance(item, entity_type) and item is not exclude:
+                return item
+    return False
 
 @conditional
 def reproduce_possible(bot):
@@ -19,7 +27,7 @@ def create_clone(bot):
     # Let's require the bot to have energy before it can do this
     if bot.energy > 0:
         # First the parent bot must pay an energy tax
-        bot.world.drain_energy_from_entity(5, bot)
+        bot.world.drain_energy_from_entity(10, bot)
         child_behavior = bot.behavior.return_tree_copy()
         # If is the second or greater child, then possible mutate the behavior
         if bot.number_children >= 2:
@@ -52,13 +60,10 @@ def wait(bot):
 
 @conditional
 def has_signal_found_plant(bot):
-    if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
-        for item in bot.signal.detected_objects:
-            # TODO: get rid of isinstance and use something better
-            if isinstance(item, Plant):
-                # print("FOUND FOOD %s at %d, %d" % (item, item.x, item.y))
-                bot.target_point = item.x, item.y
-                return True
+    plant = _check_detected_entity_type(bot.signal, Plant)
+    if plant:
+        bot.target_point = plant.x, plant.y
+        return True
     return False
 
 @statement
@@ -128,23 +133,19 @@ def eat_nearby_bots(bot):
 
 @conditional
 def has_signal_found_bots(bot):
-    if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
-        for item in bot.signal.detected_objects:
-            if isinstance(item, Bot):
-                # print("FOUND FOOD %s at %d, %d" % (item, item.x, item.y))
-                bot.target_point = item.x, item.y
-                return True
+    other_bot = _check_detected_entity_type(bot.signal, Bot, exclude=bot)
+    if other_bot:
+        bot.target_point = other_bot.x, other_bot.y
+        return True
     return False
 
 
 @conditional
 def has_signal_found_signal(bot):
-    if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
-        for item in bot.signal.detected_objects:
-            if isinstance(item, Bot) and item is not bot.signal:
-                # print("FOUND FOOD %s at %d, %d" % (item, item.x, item.y))
-                bot.target_point = item.x, item.y
-                return True
+    other_signal = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
+    if other_signal:
+        bot.target_point = other_signal.x, other_signal.y
+        return True
     return False
 
 
@@ -156,10 +157,9 @@ def eat_nearby_signal(bot):
     bot.signal.diameter = 6
     bot.world.transfer_energy_between_entities(2, donor=bot, recipient=bot.signal)
     bot.signal.step()
-    if bot.signal.detected_objects:
-        for entity in bot.signal.detected_objects:
-            if isinstance(entity, Signal) and entity is not bot.signal:
-                bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
+    entity = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
+    if entity:
+        bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
 
 @statement
 def create_sniper_signal(bot):
@@ -180,10 +180,28 @@ def very_low_energy(bot):
 
 @statement
 def set_target_to_signal_origin(bot):
-    if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
-        for item in bot.signal.detected_objects:
-            if isinstance(item, Signal) and item is not bot.signal:
-                bot.target_point = item.x, item.y
-                return True
-    return False
+    item = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
+    if item:
+        bot.target_point = item.x, item.y
 
+@statement
+def increment_message_type(bot):
+    bot.message_signal_type += 1
+    if bot.message_signal_type > 2:
+        bot.message_signal_type = 0
+
+def _check_message_type(bot, message_type):
+    item = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
+    return True if item and item.message_signal_type == message_type else False
+
+@conditional
+def detected_message_zero(bot):
+    return _check_message_type(bot, 0)
+
+@conditional
+def detected_message_one(bot):
+    return _check_message_type(bot, 1)
+
+@conditional
+def detected_message_two(bot):
+    return _check_message_type(bot, 2)

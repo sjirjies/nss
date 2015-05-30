@@ -30,6 +30,8 @@ class Bot(BaseSimulationEntity):
 
     def __init__(self, x_start, y_start, generation_number=-1, behavior_graph=None, name=None):
         super().__init__(x_start, y_start)
+        # TODO: Create some kind of individual-level memory
+        # TODO: Create bot fields that can control signal movement, size, and investment
         self.behavior = behavior_graph
         self.speed = 1
         self.child_investment = 600
@@ -38,6 +40,7 @@ class Bot(BaseSimulationEntity):
         self.generation_number = generation_number
         self.target_point = x_start, y_start
         self.signal = None
+        self.message_signal_type = 0
         Bot.counter += 1
         if name is None:
             self.name = "Bot_" + str(Bot.counter)
@@ -110,6 +113,7 @@ class Signal(BaseSimulationEntity):
 
     def __init__(self, x, y, owner, name=None, color=None):
         super().__init__(x, y)
+        self.message_signal_type = owner.message_signal_type
         self.owner = owner
         self.origination_pos = owner.x, owner.y
         self.world = owner.world

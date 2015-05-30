@@ -14,8 +14,7 @@ import behavior_functions
 # TODO: Have signals carry a 'message number' from 0-3
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
 # TODO: Improve the APIs
-# TODO: Button for toggling signal rendering
-
+# TODO: Real-time graphing panel
 
 def create_basic_brain():
     check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
@@ -65,8 +64,9 @@ def create_very_simple_brain():
 
 
 class BasePanel:
-    def __init__(self, world, width, height, text_color, bg_color):
+    def __init__(self, world, width, height, text_scale, text_color, bg_color):
         self.text_color = text_color
+        self.text_scale = text_scale
         self.surface = pygame.Surface((width, height))
         # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
@@ -83,8 +83,8 @@ class BasePanel:
 
 
 class ViewPort(BasePanel):
-    def __init__(self, world, width, height, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
-        super(ViewPort, self).__init__(world, width, height, text_color, bg_color)
+    def __init__(self, world, width, height, text_scale=1, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
+        super(ViewPort, self).__init__(world, width, height, text_scale, text_color, bg_color)
         self.world = world
         self.surface = pygame.Surface((width, height))
         self.camera_x = 0
@@ -115,6 +115,7 @@ class ViewPort(BasePanel):
             pygame.draw.rect(self.surface, (15, 15, 15), (left, top, width+1, height+1), int(self.zoom**0.5))
         # TODO: Use HSV color space instead of RBG to simplify all of this
         if self.draw_signals:
+            # TODO: Draw signals so they fade as their energy decreases
             for signal in self.world.signals:
                 if self.point_is_visible((signal.x, signal.y)):
                     diameter = signal.diameter
@@ -203,8 +204,8 @@ class ViewPort(BasePanel):
 
 
 class InfoPanel(BasePanel):
-    def __init__(self, world, clock, width, height, text_color, bg_color):
-        super(InfoPanel, self).__init__(world, width, height, text_color, bg_color)
+    def __init__(self, world, clock, width, height, text_scale, text_color, bg_color):
+        super(InfoPanel, self).__init__(world, width, height, text_scale, text_color, bg_color)
         self.width, self.height = width, height
         self.clock = clock
         self.labels_map = self._position_labels()
@@ -212,7 +213,7 @@ class InfoPanel(BasePanel):
 
     def _position_labels(self):
         x = 5
-        y = 22
+        y = 22 * self.text_scale
         labels = ["Tick", "Time", "FPS", "Free Energy", "Plants", "Bots", "Signals"]
         positions = []
         for index, label in enumerate(labels):
@@ -221,17 +222,26 @@ class InfoPanel(BasePanel):
         return positions
 
     def render(self):
+        # TODO: Make this cleaner
         data = self.poll_data()
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
             label_surface = self.writer.get_text_surface(label, self.text_color)
+            if self.text_scale > 1:
+                new_width = label_surface.get_width() * self.text_scale
+                new_height = label_surface.get_height() * self.text_scale
+                label_surface = pygame.transform.scale(label_surface, (new_width, new_height))
             # label_surface = self.font.render(label, 0, color)
             self.surface.blit(label_surface, pos)
             if index > 0:
                 amount_surface = self.writer.get_text_surface(str(data[index-1]), self.text_color)
+                if self.text_scale > 1:
+                    new_width = amount_surface.get_width() * self.text_scale
+                    new_height = amount_surface.get_height() * self.text_scale
+                    amount_surface = pygame.transform.scale(amount_surface, (new_width, new_height))
                 # amount_surface = self.font.render(str(data[index-1]), 0, color)
-                self.surface.blit(amount_surface, (11, pos[1]+11))
+                self.surface.blit(amount_surface, (11, pos[1]+(11*self.text_scale)))
 
     def poll_data(self):
         data = []
@@ -250,13 +260,13 @@ class InfoPanel(BasePanel):
 
 
 class BotPanel(BasePanel):
-    def __init__(self, world, width, height, text_color, bg_color):
-        super(BotPanel, self).__init__(world, width, height, text_color, bg_color)
+    def __init__(self, world, width, height, text_scale, text_color, bg_color):
+        super(BotPanel, self).__init__(world, width, height, text_scale, text_color, bg_color)
         self.labels_map = self._position_labels()
 
     def _position_labels(self):
         x = 7
-        y = 22
+        y = 22 * self.text_scale
         labels = ["Name", "Position", "Energy", "Peak Energy", "Generation", "Birthday", "Age", "Children",
                   "Brain Size"]
         positions = []
@@ -266,17 +276,26 @@ class BotPanel(BasePanel):
         return positions
 
     def render(self):
+        # TODO: Make this cleaner
         data = self.poll_data()
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
             label_surface = self.writer.get_text_surface(label, self.text_color)
+            if self.text_scale > 1:
+                new_width = label_surface.get_width() * self.text_scale
+                new_height = label_surface.get_height() * self.text_scale
+                label_surface = pygame.transform.scale(label_surface, (new_width, new_height))
             # label_surface = self.font.render(label, 0, color)
             self.surface.blit(label_surface, pos)
             if index > 0:
                 amount_surface = self.writer.get_text_surface(str(data[index-1]), self.text_color)
+                if self.text_scale > 1:
+                    new_width = amount_surface.get_width() * self.text_scale
+                    new_height = amount_surface.get_height() * self.text_scale
+                    amount_surface = pygame.transform.scale(amount_surface, (new_width, new_height))
                 # amount_surface = self.font.render(str(data[index-1]), 0, color)
-                self.surface.blit(amount_surface, (11, pos[1]+11))
+                self.surface.blit(amount_surface, (11, pos[1]+(11 * self.text_scale)))
 
     def poll_data(self):
         if self.world.selected_bot:
@@ -321,7 +340,7 @@ class TextWriter:
 
 class Simulation:
     def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy, collect_data=True,
-                 fps=20, scale=2, default_behavior=None):
+                 fps=20, text_scale=2, default_behavior=None):
         # Set an environment variable to center the pygame screen
         # TODO: Move display stuff into the View
         self.world = world
@@ -332,15 +351,16 @@ class Simulation:
         if world.boundary_sizes:
             view_port_width, view_port_height = world.boundary_sizes
         else:
-            view_port_width, view_port_height = 300, 300
+            view_port_width, view_port_height = 500, 500
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
 
         panel_text_color = (220, 220, 220)
         panel_bg_color = (10, 10, 10)
-        panel_width = 85
-        self.info_panel = InfoPanel(self.world, self.clock, panel_width,
-                                    view_port_height, panel_text_color, panel_bg_color)
-        self.bot_panel = BotPanel(self.world, panel_width, view_port_height, panel_text_color, panel_bg_color)
+        panel_width = 90
+        self.info_panel = InfoPanel(self.world, self.clock, panel_width * text_scale,
+                                    view_port_height, text_scale, panel_text_color, panel_bg_color)
+        self.bot_panel = BotPanel(self.world, panel_width * text_scale,
+                                  view_port_height, text_scale, panel_text_color, panel_bg_color)
 
         self.info_panel_position = ((0, 0), (self.info_panel.width, self.info_panel.height))
         self.view_port_position = ((self.info_panel.width, 0),
@@ -349,9 +369,9 @@ class Simulation:
                                    (self.bot_panel.width, self.info_panel.height))
 
         main_surface_width = view_port_width + self.info_panel.width + self.bot_panel.width
-        main_surface_height = view_port_height
+        main_surface_height = max(view_port_height, 250 * text_scale)
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
-        self.window_width, self.window_height = scale * main_surface_width, scale * main_surface_height
+        self.window_width, self.window_height = main_surface_width, main_surface_height
         # Create the simulation window
         self.window = pygame.display.set_mode((self.window_width, self.window_height),
                                               pygame.DOUBLEBUF | pygame.RESIZABLE)
@@ -359,7 +379,7 @@ class Simulation:
         self.paused = False
         self.running = True
         self.tick = 0
-        self.scale = scale
+        self.text_scale = text_scale
         self.fps = fps
         if collect_data:
             self.data_collector = WorldWatcher(self.world)
@@ -371,7 +391,7 @@ class Simulation:
         self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=10)
         # TODO: Account for paused time in the WorldWatcher results
         # Create a mouse handler and enter mainloop
-        self.mouse = self.MouseHandler(self.scale)
+        self.mouse = self.MouseHandler()
         self.mainloop()
 
     def handle_mouse_input(self):
@@ -452,7 +472,6 @@ class Simulation:
         self.mouse.mouse_button = None
         self.mouse.mouse_motion = False
         self.mouse.button_pressed = (0, 0, 0)
-        # TODO: Add check to find out which view the user clicked inside
         for event in pygame.event.get():
             # Let the user quick the simulation
             if event.type == pygame.QUIT:
@@ -514,12 +533,12 @@ class Simulation:
                 original_width = self.main_surface.get_width()
                 original_height = self.main_surface.get_height()
                 new_width, new_height = event.w, event.h
-                minimum_dimension = (self.info_panel.width * self.scale) * 2
+                minimum_dimension = self.info_panel.width * 2
                 if new_width > minimum_dimension and new_height > minimum_dimension:
                     # Create a new master surface
                     self.main_surface = pygame.display.set_mode((new_width, new_height),
                                                                 pygame.DOUBLEBUF | pygame.RESIZABLE)
-                    downscaled_new_width, downscaled_new_height = new_width//self.scale, new_height//self.scale
+                    downscaled_new_width, downscaled_new_height = new_width, new_height
                     # Resize panels to fit the new size
                     self.info_panel.resize_surface((self.info_panel.width, downscaled_new_height))
                     new_view_width = downscaled_new_width - self.info_panel.width - self.bot_panel.width
@@ -568,10 +587,6 @@ class Simulation:
             pygame.mouse.set_cursor(*pygame.cursors.arrow)
         # Apply any macro-level scaling
         final_surface = self.main_surface
-        if self.scale > 1:
-            width, height = self.main_surface.get_width() * self.scale, self.main_surface.get_height() * self.scale
-            final_surface = pygame.Surface((width, height))
-            pygame.transform.scale(self.main_surface, (width, height), final_surface)
         self.window.blit(final_surface, (0, 0))
 
     def seed_plants(self, plant_growth_ticks):
@@ -592,8 +607,7 @@ class Simulation:
             self.data_collector.poll_world_for_data()
 
     class MouseHandler:
-        def __init__(self, scale):
-            self.scale = scale
+        def __init__(self):
             self.pos = (0, 0)
             self.holding = False
             self.hold_time = 0
@@ -629,23 +643,20 @@ class Simulation:
             else:
                 raise ValueError("%s is not a registered mouse mode" % mode)
 
-        def _scale_coordinates(self, pos):
-            return pos[0]//self.scale, pos[1]//self.scale
-
         def set_click(self, pos):
-            self.click_coordinates = self._scale_coordinates(pos)
+            self.click_coordinates = pos
             self.hold_time = 0
             self.click_time = time.time()
             self.holding = True
             pygame.mouse.get_rel()
 
         def set_release(self, pos):
-            self.release_coordinates = self._scale_coordinates(pos)
+            self.release_coordinates = pos
             self.hold_time = time.time() - self.click_time
             self.holding = False
 
         def set_position(self, pos):
-            self.pos = self._scale_coordinates(pos)
+            self.pos = pos
 
         def get_instant_diff(self):
             return pygame.mouse.get_rel()
@@ -667,7 +678,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(300, 300), energy_pool=300000, plant_limit=800)
+    earth = World(boundary_sizes=(250, 250), energy_pool=300000, plant_limit=800)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -680,5 +691,5 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
-    Simulation(earth, 500, 50, 100, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
+    Simulation(earth, 500, 50, 100, collect_data=True, fps=20, text_scale=2, default_behavior=basic_brain)
 
