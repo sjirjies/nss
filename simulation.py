@@ -107,8 +107,12 @@ class ViewPort(BasePanel):
     def render(self):
         self.surface.fill(self.bg_color)
         self.surface.lock()
-        self.surface.unlock()
         pixels = pygame.surfarray.pixels3d(self.surface)
+        # Draw a vague outline around the world if bounded
+        if self.world.boundary_sizes:
+            left, top = self.world_point_to_surface((0, 0))
+            width, height = self.world.boundary_sizes[0] * self.zoom, self.world.boundary_sizes[1] * self.zoom
+            pygame.draw.rect(self.surface, (15, 15, 15), (left, top, width+1, height+1), int(self.zoom**0.5))
         # TODO: Use HSV color space instead of RBG to simplify all of this
         if self.draw_signals:
             for signal in self.world.signals:
@@ -141,6 +145,7 @@ class ViewPort(BasePanel):
         if self.world.selected_bot:
             self._draw_plant_or_bot(pixels, self.world.selected_bot, (255, 255, 255), (255, 255, 255), False)
         del pixels
+        self.surface.unlock()
 
     def _draw_plant_or_bot(self, pixel_array, entity, entity_color, energy_color, selected_color):
         t = 0 if selected_color else 1
@@ -662,7 +667,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=300000, plant_limit=800)
+    earth = World(boundary_sizes=(300, 300), energy_pool=300000, plant_limit=800)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
