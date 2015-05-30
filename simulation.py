@@ -14,6 +14,7 @@ import behavior_functions
 # TODO: Have signals carry a 'message number' from 0-3
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
 # TODO: Improve the APIs
+# TODO: Button for toggling signal rendering
 
 
 def create_basic_brain():
@@ -119,9 +120,12 @@ class ViewPort(BasePanel):
                 ratio = plant.energy/plant.max_energy
                 plant_color = (int(40 * ratio), int(240 * ratio), int(40 * ratio))
                 self._draw_plant_or_bot(pixels, plant, plant_color, True)
+        # TODO: Color outer 3rd of bot circle for hunger and inner portion for age
+        # TODO: Draw some kind of dim halo around bots with an age less than 10 to id neonates
         for bot in self.world.bots:
             if self.point_is_visible((bot.x, bot.y)):
-                bot_color = (200, 40, 200)
+                ratio = bot.age/bot.max_age
+                bot_color = (220 - int(150*ratio), 60 - int(40*ratio), 220 - int(150*ratio))
                 self._draw_plant_or_bot(pixels, bot, bot_color, True)
         # Draw a selection outline if a bot is selected
         if self.world.selected_bot:
@@ -653,5 +657,5 @@ if __name__ == '__main__':
     print(" Space key to toggle Pause")
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
-    Simulation(earth, 500, 100, 100, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
+    Simulation(earth, 500, 50, 100, collect_data=True, fps=20, scale=1, default_behavior=basic_brain)
 

@@ -178,3 +178,12 @@ def very_low_energy(bot):
         return True
     return False
 
+@statement
+def set_target_to_signal_origin(bot):
+    if bot.signal and bot.signal.detected_objects and bot.signal.energy > 0:
+        for item in bot.signal.detected_objects:
+            if isinstance(item, Signal) and item is not bot.signal:
+                bot.target_point = item.x, item.y
+                return True
+    return False
+
