@@ -330,14 +330,16 @@ class GraphPanel(BasePanel):
             x += 1
 
     def render(self):
-        self._poll_data()
         self.surface.fill(self.bg_color)
         for array, color in ((self.plants, (40, 220, 40)),
                              (self.bots, (220, 40, 220)), (self.signals, (40, 40, 220))):
             self._plot_line(array, color, 2)
 
-    def _poll_data(self):
-        self.max_value = max(max(self.plants), max(self.bots), max(self.signals))
+    def poll_data(self):
+        if self.plants and self.bots and self.signals:
+            self.max_value = max(max(self.plants), max(self.bots), max(self.signals))
+        else:
+            self.max_value = 1
         self.plants.append(self.world_watcher.plant_numbers[-1])
         self.bots.append(self.world_watcher.bot_numbers[-1])
         self.signals.append(self.world_watcher.signal_numbers[-1])
@@ -657,8 +659,8 @@ class Simulation:
             self.collect_data()
 
     def collect_data(self):
-        if self.data_collector:
-            self.data_collector.poll_world_for_data()
+        self.data_collector.poll_world_for_data()
+        self.graph_panel.poll_data()
 
     class MouseHandler:
         def __init__(self):
