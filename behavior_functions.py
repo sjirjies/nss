@@ -9,6 +9,8 @@ import math
 # Still feel free to modify them
 ##########################################
 
+# TODO: Include a decorator for comparing two bots for champion selection
+
 def _check_detected_entity_type(signal, entity_type, exclude=None):
     if signal and signal.detected_objects and signal.energy > 0:
         for item in signal.detected_objects:
@@ -216,3 +218,5 @@ def move_towards_signal_direction(bot):
         unit_vector = math.cos(bot.signal_direction), math.sin(bot.signal_direction)
         bot.x += unit_vector[0] * bot.speed
         bot.y += unit_vector[1] * bot.speed
+
+# TODO: Make an expensive 'push' signal or fun

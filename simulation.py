@@ -22,18 +22,20 @@ def create_basic_brain():
     create_clone_node = StatementNode(behavior_functions.create_clone)
     launch_signal_node = StatementNode(behavior_functions.launch_signal)
     check_active_signal_node = ConditionalNode(behavior_functions.signal_exists)
+    randomize_signal_direction = StatementNode(behavior_functions.set_random_signal_direction)
     check_signal_found_food_node = ConditionalNode(behavior_functions.has_signal_found_plant)
     wait_node = StatementNode(behavior_functions.wait)
     move_to_target_node = StatementNode(behavior_functions.move_towards_target)
     check_at_target_node = ConditionalNode(behavior_functions.target_nearby)
     eat_node = StatementNode(behavior_functions.eat_nearby_plants)
 
-    check_reproduce_node.assign_edges(create_clone_node, launch_signal_node)
+    check_reproduce_node.assign_edges(create_clone_node, check_active_signal_node)
     create_clone_node.assign_edge(check_reproduce_node)
     launch_signal_node.assign_edge(check_signal_found_food_node)
     check_signal_found_food_node.assign_edges(move_to_target_node, wait_node)
     wait_node.assign_edge(check_active_signal_node)
-    check_active_signal_node.assign_edges(check_signal_found_food_node, launch_signal_node)
+    check_active_signal_node.assign_edges(check_signal_found_food_node, randomize_signal_direction)
+    randomize_signal_direction.assign_edge(launch_signal_node)
     move_to_target_node.assign_edge(check_at_target_node)
     check_at_target_node.assign_edges(eat_node, move_to_target_node)
     eat_node.assign_edge(check_reproduce_node)
@@ -737,6 +739,7 @@ class Simulation:
             return x1 <= point[0] <= x2 and y1 <= point[1] <= y2
 
 
+# TODO: Allow selecting from multiple behavior files
 if __name__ == '__main__':
     print("Starting Simulation...")
     earth = World(boundary_sizes=(300, 200), energy_pool=300000, plant_limit=850)

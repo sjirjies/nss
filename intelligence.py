@@ -11,6 +11,8 @@ class NodeRegister:
     registered_statements = []
     registered_conditionals = []
 
+# TODO: Consider adding a decorator that indicates a function can be used for initial random brain creation
+# This could be a pool in NodeRegister and if it is empty than all functions are used
 
 def statement(function):
     @functools.wraps(function)
