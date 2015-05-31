@@ -326,7 +326,7 @@ class GraphPanel(BasePanel):
             # Make sure the maximum value is drawn on the graph
             if y <= 6:
                 y = 6
-            pygame.draw.rect(self.surface, color, (x-1, int(y)-4, 2, 2), 0)
+            pygame.draw.rect(self.surface, color, (x-1, int(y)-4, 2, 2), 13)
             x += 1
 
     def render(self):
@@ -554,13 +554,15 @@ class Simulation:
                     print("Entered 'bot-select' mode")
                 elif key == pygame.K_3:
                     # Save the intelligence graph of the selected bot
-                    print("Saving brain of currently selected bot...")
                     folder = os.getcwd() + os.sep + 'brain_graphs' + os.sep
                     if not os.path.exists(folder):
                         os.makedirs(folder)
                     if self.world.selected_bot:
+                        print("Saving brain of currently selected bot...")
                         file = folder + "brain_" + str(datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S"))
                         WorldWatcher.save_bot_intelligence(self.world.selected_bot, file)
+                    else:
+                        print("Cannot save a brain if no bot is selected")
                 elif key == pygame.K_4:
                     # Toggle rendering of signals in the view port
                     self.view_port.draw_signals = False if self.view_port.draw_signals else True
