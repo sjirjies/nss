@@ -85,7 +85,6 @@ class BasePanel:
 class ViewPort(BasePanel):
     def __init__(self, world, width, height, text_scale=1, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
         super(ViewPort, self).__init__(world, width, height, text_scale, text_color, bg_color)
-        self.world = world
         self.surface = pygame.Surface((width, height))
         self.camera_x = 0
         self.camera_y = 0
@@ -206,7 +205,6 @@ class ViewPort(BasePanel):
 class InfoPanel(BasePanel):
     def __init__(self, world, clock, width, height, text_scale, text_color, bg_color):
         super(InfoPanel, self).__init__(world, width, height, text_scale, text_color, bg_color)
-        self.width, self.height = width, height
         self.clock = clock
         self.labels_map = self._position_labels()
         self._position_labels()
@@ -373,9 +371,10 @@ class Simulation:
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
         self.window_width, self.window_height = main_surface_width, main_surface_height
         # Create the simulation window
+        pygame.display.set_caption('NSS')
+        pygame.display.set_icon(pygame.image.load(os.getcwd() + os.sep + 'nss_icon.png'))
         self.window = pygame.display.set_mode((self.window_width, self.window_height),
                                               pygame.DOUBLEBUF | pygame.RESIZABLE)
-        pygame.display.set_caption('NSS')
         self.paused = False
         self.running = True
         self.tick = 0
