@@ -2,6 +2,7 @@ import os
 import time
 import pygame
 import datetime
+import collections
 from world import World, WorldWatcher
 
 from sim_entities import *
@@ -64,13 +65,12 @@ def create_very_simple_brain():
 
 
 class BasePanel:
-    def __init__(self, world, width, height, text_scale, text_color, bg_color):
+    def __init__(self, width, height, text_scale, text_color, bg_color):
         self.text_color = text_color
         self.text_scale = text_scale
         self.surface = pygame.Surface((width, height))
         # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
-        self.world = world
         self.writer = TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
         self.bg_color = bg_color
 
@@ -84,7 +84,8 @@ class BasePanel:
 
 class ViewPort(BasePanel):
     def __init__(self, world, width, height, text_scale=1, text_color=(220, 220, 220), bg_color=(0, 0, 0)):
-        super(ViewPort, self).__init__(world, width, height, text_scale, text_color, bg_color)
+        super(ViewPort, self).__init__(width, height, text_scale, text_color, bg_color)
+        self.world = world
         self.surface = pygame.Surface((width, height))
         self.camera_x = 0
         self.camera_y = 0
@@ -204,7 +205,8 @@ class ViewPort(BasePanel):
 
 class InfoPanel(BasePanel):
     def __init__(self, world, clock, width, height, text_scale, text_color, bg_color):
-        super(InfoPanel, self).__init__(world, width, height, text_scale, text_color, bg_color)
+        super(InfoPanel, self).__init__(width, height, text_scale, text_color, bg_color)
+        self.world = world
         self.clock = clock
         self.labels_map = self._position_labels()
         self._position_labels()
@@ -221,7 +223,7 @@ class InfoPanel(BasePanel):
 
     def render(self):
         # TODO: Make this cleaner
-        data = self.poll_data()
+        data = self._poll_data()
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
@@ -241,7 +243,7 @@ class InfoPanel(BasePanel):
                 # amount_surface = self.font.render(str(data[index-1]), 0, color)
                 self.surface.blit(amount_surface, (11, pos[1]+(11*self.text_scale)))
 
-    def poll_data(self):
+    def _poll_data(self):
         data = []
         data.append(self.world.tick_number)
         seconds = int(self.world.time)
@@ -259,7 +261,8 @@ class InfoPanel(BasePanel):
 
 class BotPanel(BasePanel):
     def __init__(self, world, width, height, text_scale, text_color, bg_color):
-        super(BotPanel, self).__init__(world, width, height, text_scale, text_color, bg_color)
+        super(BotPanel, self).__init__(width, height, text_scale, text_color, bg_color)
+        self.world = world
         self.labels_map = self._position_labels()
 
     def _position_labels(self):
@@ -275,7 +278,7 @@ class BotPanel(BasePanel):
 
     def render(self):
         # TODO: Make this cleaner
-        data = self.poll_data()
+        data = self._poll_data()
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
@@ -295,7 +298,7 @@ class BotPanel(BasePanel):
                 # amount_surface = self.font.render(str(data[index-1]), 0, color)
                 self.surface.blit(amount_surface, (11, pos[1]+(11 * self.text_scale)))
 
-    def poll_data(self):
+    def _poll_data(self):
         if self.world.selected_bot:
             bot = self.world.selected_bot
             data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
@@ -303,6 +306,51 @@ class BotPanel(BasePanel):
             return data
         else:
             return ['-' for _ in range(9)]
+
+
+class GraphPanel(BasePanel):
+    # TODO: Reduce lag probably caused by this class
+    def __init__(self, world_watcher, width, height, text_scale, text_color, bg_color):
+        super(GraphPanel, self).__init__(width, height, text_scale, text_color, bg_color)
+        self.world_watcher = world_watcher
+        self.granularity = 1
+        self.plants = collections.deque(maxlen=self.width)
+        self.bots = collections.deque(maxlen=self.width)
+        self.signals = collections.deque(maxlen=self.width)
+        self.max_value = 1
+
+    def _plot_line(self, array, color, thickness):
+        x = 0
+        for value in array:
+            y = (self.height + 3) - (((value+1)/(self.max_value+1)) * self.height)
+            # Make sure the maximum value is drawn on the graph
+            if y <= 6:
+                y = 6
+            pygame.draw.rect(self.surface, color, (x-1, int(y)-4, 2, 2), 0)
+            x += 1
+
+    def render(self):
+        self._poll_data()
+        self.surface.fill(self.bg_color)
+        for array, color in ((self.plants, (40, 220, 40)),
+                             (self.bots, (220, 40, 220)), (self.signals, (40, 40, 220))):
+            self._plot_line(array, color, 2)
+
+    def _poll_data(self):
+        self.max_value = max(max(self.plants), max(self.bots), max(self.signals))
+        self.plants.append(self.world_watcher.plant_numbers[-1])
+        self.bots.append(self.world_watcher.bot_numbers[-1])
+        self.signals.append(self.world_watcher.signal_numbers[-1])
+
+    def resize_surface(self, new_size):
+        super().resize_surface(new_size)
+        # Reset the size of each deque and repopulate it with data
+        world_plants = self.world_watcher.plant_numbers
+        world_bots = self.world_watcher.bot_numbers
+        world_signals = self.world_watcher.signal_numbers
+        self.plants = collections.deque(world_plants, self.width)
+        self.bots = collections.deque(world_bots, self.width)
+        self.signals = collections.deque(world_signals, self.width)
 
 
 class TextWriter:
@@ -337,37 +385,40 @@ class TextWriter:
 
 
 class Simulation:
-    def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy, collect_data=True,
-                 fps=20, text_scale=2, default_behavior=None):
+    def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy,
+                 fps=20, text_scale=2, graph_height=100, default_behavior=None):
         # Set an environment variable to center the pygame screen
         # TODO: Move display stuff into the View
         self.world = world
+        self.data_collector = WorldWatcher(self.world)
         # os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         self.clock = pygame.time.Clock()
         # Set up the different views
+        panel_text_color = (220, 220, 220)
+        panel_bg_color = (10, 10, 10)
+        text_panel_width = 90 * text_scale
         if world.boundary_sizes:
             view_port_width, view_port_height = world.boundary_sizes
         else:
             view_port_width, view_port_height = 500, 500
         self.view_port = ViewPort(self.world, view_port_width, view_port_height)
-
-        panel_text_color = (220, 220, 220)
-        panel_bg_color = (10, 10, 10)
-        panel_width = 90
-        self.info_panel = InfoPanel(self.world, self.clock, panel_width * text_scale,
+        self.info_panel = InfoPanel(self.world, self.clock, text_panel_width,
                                     view_port_height, text_scale, panel_text_color, panel_bg_color)
-        self.bot_panel = BotPanel(self.world, panel_width * text_scale,
+        self.bot_panel = BotPanel(self.world, text_panel_width,
                                   view_port_height, text_scale, panel_text_color, panel_bg_color)
+        graph_panel_width = (text_panel_width * 2) + self.view_port.width
+        self.graph_panel = GraphPanel(self.data_collector, graph_panel_width, graph_height, 1,
+                                      panel_text_color, panel_bg_color)
 
         self.info_panel_position = ((0, 0), (self.info_panel.width, self.info_panel.height))
         self.view_port_position = ((self.info_panel.width, 0),
                                    (self.view_port.width, self.view_port.height))
         self.bot_panel_position = ((self.view_port_position[0][0] + self.view_port_position[1][0], 0),
                                    (self.bot_panel.width, self.info_panel.height))
-
         main_surface_width = view_port_width + self.info_panel.width + self.bot_panel.width
-        main_surface_height = max(view_port_height, 250 * text_scale)
+        main_surface_height = max(self.info_panel.height, 250 * text_scale) + graph_height
+        self.graph_panel_position = ((0, self.info_panel.height), (graph_panel_width, self.info_panel.height))
         self.main_surface = pygame.Surface((main_surface_width, main_surface_height))
         self.window_width, self.window_height = main_surface_width, main_surface_height
         # Create the simulation window
@@ -380,10 +431,6 @@ class Simulation:
         self.tick = 0
         self.text_scale = text_scale
         self.fps = fps
-        if collect_data:
-            self.data_collector = WorldWatcher(self.world)
-        else:
-            self.data_collector = None
         self.seed_plants(plant_growth_ticks)
         # Populate the world with bots
         print("Adding bots...")
@@ -529,6 +576,7 @@ class Simulation:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
             elif event.type == pygame.VIDEORESIZE:
+                # TODO: This needs some major cleanup
                 original_width = self.main_surface.get_width()
                 original_height = self.main_surface.get_height()
                 new_width, new_height = event.w, event.h
@@ -537,18 +585,20 @@ class Simulation:
                     # Create a new master surface
                     self.main_surface = pygame.display.set_mode((new_width, new_height),
                                                                 pygame.DOUBLEBUF | pygame.RESIZABLE)
-                    downscaled_new_width, downscaled_new_height = new_width, new_height
                     # Resize panels to fit the new size
-                    self.info_panel.resize_surface((self.info_panel.width, downscaled_new_height))
-                    new_view_width = downscaled_new_width - self.info_panel.width - self.bot_panel.width
-                    new_view_height = downscaled_new_height
-                    self.view_port.resize_surface((new_view_width, new_view_height))
-                    self.bot_panel.resize_surface((self.bot_panel.width, downscaled_new_height))
+                    side_panel_height = new_height - self.graph_panel.height
+                    self.info_panel.resize_surface((self.info_panel.width, side_panel_height))
+                    new_view_width = new_width - self.info_panel.width - self.bot_panel.width
+                    self.view_port.resize_surface((new_view_width, new_height - self.graph_panel.height))
+                    self.bot_panel.resize_surface((self.bot_panel.width, side_panel_height))
+                    graph_width = self.info_panel.width + self.bot_panel.width + self.view_port.width
+                    self.graph_panel.resize_surface((graph_width, self.graph_panel.height))
                     # Set the new positions
                     self.info_panel_position = ((0, 0), (self.info_panel.get_size()))
                     self.view_port_position = ((self.info_panel.width, 0), self.view_port.get_size())
                     self.bot_panel_position = ((self.info_panel.width + self.view_port.width, 0),
                                                (self.bot_panel.get_size()))
+                    self.graph_panel_position = ((0, self.info_panel.height), (graph_width, self.graph_panel.height))
                     # Center the world if using boundaries
                     if self.world.boundary_sizes:
                         x, y = self.world.boundary_sizes
@@ -569,14 +619,19 @@ class Simulation:
                              (1, 0, view.get_width()-(thick//2)-1, view.get_height()-(thick//2)), thick)
         self.info_panel.render()
         self.bot_panel.render()
+        self.graph_panel.render()
         self.main_surface.blit(self.view_port.surface, self.view_port_position[0])
         self.main_surface.blit(self.info_panel.surface, self.info_panel_position[0])
         self.main_surface.blit(self.bot_panel.surface, self.bot_panel_position[0])
+        self.main_surface.blit(self.graph_panel.surface, self.graph_panel_position[0])
         # Draw a line separating the view port from the info view
         for panel, offset in ((self.info_panel_position, 1), (self.bot_panel_position, self.bot_panel_position[1][0])):
             line_start = (panel[0][0] + panel[1][0] - offset, panel[0][1])
             line_end = (line_start[0], line_start[1] + panel[1][1])
             pygame.draw.line(self.main_surface, (70, 70, 70), line_start, line_end, 2)
+        # Draw a line between the graph and everything else
+        pygame.draw.line(self.main_surface, (70, 70, 70), self.graph_panel_position[0],
+                         (self.graph_panel.width, self.graph_panel_position[0][1]), 2)
         # Handle cursor graphics
         # TODO: Cursor icons only need to be changes with the cursor enters or exits a panel, not every frame
         if self.mouse.in_rectangle(self.view_port_position):
@@ -677,7 +732,7 @@ class Simulation:
 
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(250, 250), energy_pool=300000, plant_limit=800)
+    earth = World(boundary_sizes=(300, 200), energy_pool=300000, plant_limit=850)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -690,5 +745,5 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
-    Simulation(earth, 500, 50, 100, collect_data=True, fps=20, text_scale=2, default_behavior=basic_brain)
+    Simulation(earth, 500, 50, 100, fps=20, text_scale=2, graph_height=150, default_behavior=basic_brain)
 
