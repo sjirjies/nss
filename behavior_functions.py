@@ -45,7 +45,7 @@ def create_clone(bot):
 @statement
 def launch_signal(bot):
     # TODO: Make signal creation not require passing 0 and setting energy with a World method
-    bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(60, 60, 190))
+    bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(60, 60, 190))
     bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
 
 @conditional
@@ -107,7 +107,7 @@ def create_local_signal(bot):
 @statement
 def create_long_range_signal(bot):
     # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
-    bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(150, 190, 240))
+    bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(150, 190, 240))
     bot.signal.diameter = 4
     bot.world.transfer_energy_between_entities(25, donor=bot, recipient=bot.signal)
 
@@ -164,7 +164,7 @@ def eat_nearby_signal(bot):
 @statement
 def create_sniper_signal(bot):
     # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
-    bot.signal = MobileSignal(bot.x, bot.y, ranf()*2*math.pi, bot, color=(190, 220, 240))
+    bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(190, 220, 240))
     bot.signal.diameter = 2
     bot.world.transfer_energy_between_entities(50, donor=bot, recipient=bot.signal)
 
@@ -205,3 +205,14 @@ def detected_message_one(bot):
 @conditional
 def detected_message_two(bot):
     return _check_message_type(bot, 2)
+
+@statement
+def set_random_signal_direction(bot):
+    bot.signal_direction = ranf()*2*math.pi
+
+@statement
+def move_towards_signal_direction(bot):
+    if bot.signal_direction:
+        unit_vector = math.cos(bot.signal_direction), math.sin(bot.signal_direction)
+        bot.x += unit_vector[0] * bot.speed
+        bot.y += unit_vector[1] * bot.speed

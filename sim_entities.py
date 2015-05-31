@@ -1,5 +1,6 @@
 import math
 from intelligence import *
+from numpy.random import ranf
 import numpy as np
 
 
@@ -40,6 +41,7 @@ class Bot(BaseSimulationEntity):
         self.generation_number = generation_number
         self.target_point = x_start, y_start
         self.signal = None
+        self.signal_direction = ranf()*2*math.pi
         self.message_signal_type = 0
         Bot.counter += 1
         if name is None:

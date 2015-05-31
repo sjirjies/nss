@@ -175,7 +175,7 @@ class ViewPort(BasePanel):
     def track_selected_bot(self):
         if self.world.selected_bot:
             bot = self.world.selected_bot
-            self.center_camera_on_point((int(bot.x), int(bot.y)))
+            self.center_camera_on_point((bot.x, bot.y))
 
     def move_camera_to_coordinates(self, x, y):
         self.camera_x, self.camera_y = x, y
@@ -326,7 +326,7 @@ class GraphPanel(BasePanel):
             # Make sure the maximum value is drawn on the graph
             if y <= 6:
                 y = 6
-            pygame.draw.rect(self.surface, color, (x-1, int(y)-4, 2, 2), 13)
+            pygame.draw.rect(self.surface, color, (x-1, int(y)-4, 2, 2), 1)
             x += 1
 
     def render(self):
@@ -579,38 +579,41 @@ class Simulation:
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mouse.set_release(event.pos)
+            # Take care of window resizing
             elif event.type == pygame.VIDEORESIZE:
-                # TODO: This needs some major cleanup
-                original_width = self.main_surface.get_width()
-                original_height = self.main_surface.get_height()
-                new_width, new_height = event.w, event.h
-                minimum_dimension = self.info_panel.width * 2
-                if new_width > minimum_dimension and new_height > minimum_dimension:
-                    # Create a new master surface
-                    self.main_surface = pygame.display.set_mode((new_width, new_height),
-                                                                pygame.DOUBLEBUF | pygame.RESIZABLE)
-                    # Resize panels to fit the new size
-                    side_panel_height = new_height - self.graph_panel.height
-                    self.info_panel.resize_surface((self.info_panel.width, side_panel_height))
-                    new_view_width = new_width - self.info_panel.width - self.bot_panel.width
-                    self.view_port.resize_surface((new_view_width, new_height - self.graph_panel.height))
-                    self.bot_panel.resize_surface((self.bot_panel.width, side_panel_height))
-                    graph_width = self.info_panel.width + self.bot_panel.width + self.view_port.width
-                    self.graph_panel.resize_surface((graph_width, self.graph_panel.height))
-                    # Set the new positions
-                    self.info_panel_position = ((0, 0), (self.info_panel.get_size()))
-                    self.view_port_position = ((self.info_panel.width, 0), self.view_port.get_size())
-                    self.bot_panel_position = ((self.info_panel.width + self.view_port.width, 0),
-                                               (self.bot_panel.get_size()))
-                    self.graph_panel_position = ((0, self.info_panel.height), (graph_width, self.graph_panel.height))
-                    # Center the world if using boundaries
-                    if self.world.boundary_sizes:
-                        x, y = self.world.boundary_sizes
-                        self.view_port.center_camera_on_point((x/2, y/2))
-                else:
-                    print("Cannot resize window to smaller than (%d, %d)" % (minimum_dimension, minimum_dimension))
-                    self.main_surface = pygame.display.set_mode((original_width, original_height),
-                                                                pygame.DOUBLEBUF | pygame.RESIZABLE)
+                self.attempt_window_rescale(event.w, event.h)
+
+    def attempt_window_rescale(self, new_width, new_height):
+        # TODO: This needs some major cleanup
+        original_width = self.main_surface.get_width()
+        original_height = self.main_surface.get_height()
+        minimum_dimension = self.info_panel.width * 2
+        if new_width > minimum_dimension and new_height > minimum_dimension:
+            # Create a new master surface
+            self.main_surface = pygame.display.set_mode((new_width, new_height),
+                                                        pygame.DOUBLEBUF | pygame.RESIZABLE)
+            # Resize panels to fit the new size
+            side_panel_height = new_height - self.graph_panel.height
+            self.info_panel.resize_surface((self.info_panel.width, side_panel_height))
+            new_view_width = new_width - self.info_panel.width - self.bot_panel.width
+            self.view_port.resize_surface((new_view_width, new_height - self.graph_panel.height))
+            self.bot_panel.resize_surface((self.bot_panel.width, side_panel_height))
+            graph_width = self.info_panel.width + self.bot_panel.width + self.view_port.width
+            self.graph_panel.resize_surface((graph_width, self.graph_panel.height))
+            # Set the new positions
+            self.info_panel_position = ((0, 0), (self.info_panel.get_size()))
+            self.view_port_position = ((self.info_panel.width, 0), self.view_port.get_size())
+            self.bot_panel_position = ((self.info_panel.width + self.view_port.width, 0),
+                                       (self.bot_panel.get_size()))
+            self.graph_panel_position = ((0, self.info_panel.height), (graph_width, self.graph_panel.height))
+            # Center the world if using boundaries
+            if self.world.boundary_sizes:
+                x, y = self.world.boundary_sizes
+                self.view_port.center_camera_on_point((x/2, y/2))
+        else:
+            print("Cannot resize window to smaller than (%d, %d)" % (minimum_dimension, minimum_dimension))
+            self.main_surface = pygame.display.set_mode((original_width, original_height),
+                                                        pygame.DOUBLEBUF | pygame.RESIZABLE)
 
     def draw_graphics(self):
         # Draw the various views to the window
