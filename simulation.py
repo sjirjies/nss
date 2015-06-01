@@ -497,8 +497,8 @@ class Simulation:
             self.handle_mouse_input()
             # Update the world
             if not self.paused:
-                self.view_port.track_selected_bot()
                 self.world.step()
+                self.view_port.track_selected_bot()
                 # Collect Data if enabled
                 self.collect_data()
                 self.tick += 1
@@ -741,7 +741,7 @@ class Simulation:
 # TODO: Allow selecting from multiple behavior files
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(400, 400), energy_pool=500000)
+    earth = World(boundary_sizes=(300, 200), energy_pool=200000)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -754,5 +754,5 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
-    Simulation(earth, 500, 1000, 150, fps=20, text_scale=2, graph_height=150, default_behavior=None,
+    Simulation(earth, 400, 200, 500, fps=20, text_scale=2, graph_height=150, default_behavior=None,
                default_brain_size=10)

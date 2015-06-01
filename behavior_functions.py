@@ -118,7 +118,7 @@ def set_random_target(bot):
     bot.target_point = bot.x + random_integers(-100, 100), bot.y + random_integers(-100, 100)
 
 
-@statement()
+@statement(seed_eligible=False)
 def eat_nearby_bots(bot):
     if bot.signal:
         bot.signal.dead = True
@@ -132,7 +132,7 @@ def eat_nearby_bots(bot):
                 bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
 
 
-@conditional()
+@conditional(seed_eligible=False)
 def has_signal_found_bots(bot):
     other_bot = _check_detected_entity_type(bot.signal, Bot, exclude=bot)
     if other_bot:
