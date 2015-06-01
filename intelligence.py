@@ -10,26 +10,42 @@ class NodeRegister:
     conditional = 2
     registered_statements = []
     registered_conditionals = []
+    eligible_seed_conditions = []
+    eligible_seed_statements = []
+    required_seed_statements = []
+    required_seed_conditionals = []
 
 # TODO: Consider adding a decorator that indicates a function can be used for initial random brain creation
 # This could be a pool in NodeRegister and if it is empty than all functions are used
 
-def statement(function):
-    @functools.wraps(function)
-    def dec(*args, **kwargs):
-        # print("Function: %s" % function.__name__)
-        return function(*args, **kwargs)
-    NodeRegister.registered_statements.append(dec)
-    return dec
+def statement(seed_eligible=True, seed_required=False):
+    def dummy_statement(function):
+        @functools.wraps(function)
+        def dec(*args, **kwargs):
+            # print("Function: %s" % function.__name__)
+            return function(*args, **kwargs)
+        NodeRegister.registered_statements.append(dec)
+        if seed_eligible:
+            NodeRegister.eligible_seed_statements.append(function)
+        if seed_required:
+            NodeRegister.required_seed_statements.append(function)
+        return dec
+    return dummy_statement
 
 
-def conditional(function):
-    @functools.wraps(function)
-    def dec(*args, **kwargs):
-        # print("Function: %s" % function.__name__)
-        return function(*args, **kwargs)
-    NodeRegister.registered_conditionals.append(dec)
-    return dec
+def conditional(seed_eligible=True, seed_required=False):
+    def dummy_conditional(function):
+        @functools.wraps(function)
+        def dec(*args, **kwargs):
+            # print("Function: %s" % function.__name__)
+            return function(*args, **kwargs)
+        NodeRegister.registered_conditionals.append(dec)
+        if seed_eligible:
+            NodeRegister.eligible_seed_conditions.append(function)
+        if seed_required:
+            NodeRegister.required_seed_conditionals.append(function)
+        return dec
+    return dummy_conditional
 
 
 class BaseBehaviorNode:
@@ -127,12 +143,29 @@ class BehaviorGraph:
     def generate_random_graph(self, number_of_nodes, percent_conditional=0.5):
         # First pick some random functions from the registry and create nodes from them
         self.behavior_nodes = []
-        for counter in range(0, number_of_nodes):
-            if random() < percent_conditional:
-                node = ConditionalNode(choice(NodeRegister.registered_conditionals))
-            else:
-                node = StatementNode(choice(NodeRegister.registered_statements))
+        required_node_count = len(NodeRegister.required_seed_statements) + \
+                              len(NodeRegister.required_seed_conditionals)
+        for n in range(required_node_count):
+            if NodeRegister.required_seed_conditionals and NodeRegister.required_seed_statements:
+                if random() < percent_conditional:
+                    node = ConditionalNode(choice(NodeRegister.required_seed_conditionals))
+                else:
+                    node = StatementNode(choice(NodeRegister.required_seed_statements))
+            elif NodeRegister.required_seed_conditionals:
+                node = ConditionalNode(choice(NodeRegister.required_seed_conditionals))
+            elif NodeRegister.required_seed_statements:
+                node = StatementNode(choice(NodeRegister.required_seed_statements))
+            number_of_nodes -= 1
             self.behavior_nodes.append(node)
+
+        if number_of_nodes > 0:
+            for counter in range(0, number_of_nodes):
+                if random() < percent_conditional:
+                    node = ConditionalNode(choice(NodeRegister.eligible_seed_conditions))
+                else:
+                    node = StatementNode(choice(NodeRegister.eligible_seed_statements))
+                self.behavior_nodes.append(node)
+
         # Now hook the nodes together randomly
         for node in self.behavior_nodes:
             if node.node_type == NodeRegister.statement:

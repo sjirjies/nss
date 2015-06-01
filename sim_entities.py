@@ -113,7 +113,7 @@ class Plant(BaseSimulationEntity):
 class Signal(BaseSimulationEntity):
     counter = 0
 
-    def __init__(self, x, y, owner, name=None, color=None):
+    def __init__(self, x, y, owner, name=None, color=None, max_age=1):
         super().__init__(x, y)
         self.message_signal_type = owner.message_signal_type
         self.owner = owner
@@ -123,6 +123,7 @@ class Signal(BaseSimulationEntity):
         self.diameter = 8
         self.speed = 0
         self.color = color
+        self.max_age = max_age
         Signal.counter += 1
         if name:
             self.name = name
@@ -138,7 +139,11 @@ class Signal(BaseSimulationEntity):
                 entity = self.world.all_entities[index]
                 if entity not in self.detected_objects:
                     self.detected_objects.append(entity)
-        super().step()
+        self.age += 1
+        if self.energy < 1:
+            self.dead = True
+        if self.age > self.max_age:
+            self.dead = True
 
     def __str__(self):
         return self.name
@@ -146,8 +151,8 @@ class Signal(BaseSimulationEntity):
 
 # TODO: Ingest Static and Mobile Signal into Signal. Let Bots toggle the speed and other properies.
 class StaticSignal(Signal):
-    def __init__(self, x, y, owner, name=None, color=None):
-        super().__init__(x, y, owner, name, color)
+    def __init__(self, x, y, owner, name=None, color=None, max_age=1):
+        super().__init__(x, y, owner, name, color, max_age=max_age)
         self.speed = 0
         self.diameter = 4
 
@@ -156,8 +161,8 @@ class StaticSignal(Signal):
 
 
 class MobileSignal(Signal):
-    def __init__(self, x, y, radians, owner, name=None, color=None):
-        super().__init__(x, y, owner, name, color)
+    def __init__(self, x, y, radians, owner, name=None, color=None, max_age=10):
+        super().__init__(x, y, owner, name, color, max_age=max_age)
         self.speed = 2
         self.radians = radians
         self.x_diff = self.speed * math.cos(radians)

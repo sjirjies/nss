@@ -12,10 +12,8 @@ import behavior_functions
 #   - Create a Model, which is the simulation
 #   - Create a View that reads from World
 #   - Create a Controller that uses the World API
-# TODO: Have signals carry a 'message number' from 0-3
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
 # TODO: Improve the APIs
-# TODO: Real-time graphing panel
 
 def create_basic_brain():
     check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
@@ -390,7 +388,8 @@ class TextWriter:
 
 class Simulation:
     def __init__(self, world, plant_growth_ticks, initial_bots, initial_bot_energy,
-                 fps=20, text_scale=2, graph_height=100, default_behavior=None):
+                 fps=20, text_scale=2, graph_height=100, default_behavior=None,
+                 default_brain_size=10):
         # Set an environment variable to center the pygame screen
         # TODO: Move display stuff into the View
         self.world = world
@@ -438,7 +437,7 @@ class Simulation:
         self.seed_plants(plant_growth_ticks)
         # Populate the world with bots
         print("Adding bots...")
-        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=10)
+        self.world.populate(initial_bots, initial_bot_energy, default_behavior, behavior_size=default_brain_size)
         # TODO: Account for paused time in the WorldWatcher results
         # Create a mouse handler and enter mainloop
         self.mouse = self.MouseHandler()
@@ -742,7 +741,7 @@ class Simulation:
 # TODO: Allow selecting from multiple behavior files
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(300, 200), energy_pool=300000, plant_limit=850)
+    earth = World(boundary_sizes=(400, 400), energy_pool=500000)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")
@@ -755,5 +754,5 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
-    Simulation(earth, 500, 50, 100, fps=20, text_scale=2, graph_height=150, default_behavior=basic_brain)
-
+    Simulation(earth, 500, 1000, 150, fps=20, text_scale=2, graph_height=150, default_behavior=None,
+               default_brain_size=10)
