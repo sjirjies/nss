@@ -42,7 +42,7 @@ def create_basic_brain():
     behavior = BehaviorGraph()
     behavior.behavior_nodes = [launch_signal_node, check_reproduce_node, create_clone_node,
                                check_signal_found_food_node, wait_node, move_to_target_node, check_at_target_node,
-                               eat_node, check_active_signal_node]
+                               eat_node, check_active_signal_node, randomize_signal_direction]
     behavior.set_entry_node(launch_signal_node)
     return behavior
 
@@ -433,5 +433,5 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
-    Simulation(earth, 400, 200, 500, fps=20, text_scale=2, graph_height=150, default_behavior=None,
+    Simulation(earth, 400, 400, 200, fps=20, text_scale=2, graph_height=150, default_behavior=basic_brain,
                default_brain_size=10)

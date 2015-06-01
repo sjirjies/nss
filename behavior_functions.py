@@ -31,7 +31,7 @@ def create_clone(bot):
         # First the parent bot must pay an energy tax
         bot.world.drain_energy_from_entity(10, bot)
         child_behavior = bot.behavior.return_tree_copy()
-        # If is the second or greater child, then possible mutate the behavior
+        # Allow mutation
         if random_integers(1, 100) < 40:
             child_behavior.mutate_behavior()
         child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3),
@@ -217,17 +217,18 @@ def move_towards_signal_direction(bot):
         bot.x += unit_vector[0] * bot.speed
         bot.y += unit_vector[1] * bot.speed
 
-# TODO: Make an expensive 'push' signal or fun
 @statement()
 def surround_push(bot):
-    signal = StaticSignal(bot.x, bot.y, bot, color=(40, 220, 220))
-    bot.world.transfer_energy_between_entities(200, donor=bot, recipient=signal)
-    signal.diameter = 7
+    signal = StaticSignal(bot.x, bot.y, bot, color=(205, 205, 40), max_age=2)
+    bot.world.transfer_energy_between_entities(80, donor=bot, recipient=signal)
+    signal.diameter = 18
     bot.signal = signal
     bot.signal.step()
     if signal.detected_objects:
         for item in signal.detected_objects:
-            if isinstance(item, Bot):
-                dx, dy = bot.world.get_unit_vector_to_point((bot.x, bot.y), (item.x, item.y))
-                item.x += dx * signal.diameter
-                item.y += dy * signal.diameter
+            if isinstance(item, Bot) and item is not bot:
+                dx, dy = item.x - signal.x, item.y - signal.y
+                radians = math.atan2(dy, dx)
+                radius = signal.diameter/2
+                item.x = signal.x + (radius * math.cos(radians))
+                item.y = signal.y + (radius * math.sin(radians))

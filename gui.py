@@ -242,7 +242,9 @@ class BotPanel(BasePanel):
         if self.world.selected_bot:
             bot = self.world.selected_bot
             data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
-                    bot.generation_number, bot.birthday, bot.age, bot.number_children, len(bot.behavior.behavior_nodes)]
+                    bot.generation_number, bot.birthday,
+                    '%d (%d%%)' % (bot.age, int(bot.age/bot.max_age*100)),
+                    bot.number_children, len(bot.behavior.behavior_nodes)]
             return data
         else:
             return ['-' for _ in range(9)]
