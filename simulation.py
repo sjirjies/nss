@@ -9,10 +9,6 @@ from sim_entities import *
 from gui import *
 import behavior_functions
 
-# TODO: Convert to an MVC model
-#   - Create a Model, which is the simulation
-#   - Create a View that reads from World
-#   - Create a Controller that uses the World API
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
 # TODO: Improve the APIs
 
@@ -363,7 +359,7 @@ class Simulation:
             names_and_files = (('camera', 'camera_cursor.txt'),
                                ('bot-select', 'bot-select_cursor.txt'))
             for mode_name, file_name in names_and_files:
-                cursor_string, size, hot_spot = self._load_cursor(file_name)
+                cursor_string, size, hot_spot = self._load_cursor("resources" + os.sep + file_name)
                 cursor = pygame.cursors.compile(cursor_string, black='x', white='.')
                 self.modes[mode_name] = (size, hot_spot, cursor)
             self.current_mode = "camera"

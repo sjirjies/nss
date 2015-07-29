@@ -11,7 +11,7 @@ class BasePanel:
         self.surface = pygame.Surface((width, height))
         # self.font = pygame.font.SysFont('calibri,dejavu sans,courier-new', 10)
         self.width, self.height = width, height
-        self.writer = TextWriter('nss_font_5x8.png', 5, 8, 1, 16)
+        self.writer = TextWriter('resources' + os.sep + 'nss_font_5x8.png', 5, 8, 1, 16)
         self.bg_color = bg_color
 
     def resize_surface(self, new_size):

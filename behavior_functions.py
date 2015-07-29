@@ -107,7 +107,6 @@ def create_local_signal(bot):
 
 @statement()
 def create_long_range_signal(bot):
-    # TODO: Allow bots to store a direction for their signal propagation instead of using a random one
     bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(150, 190, 240))
     bot.signal.diameter = 4
     bot.world.transfer_energy_between_entities(25, donor=bot, recipient=bot.signal)

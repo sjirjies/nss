@@ -143,9 +143,10 @@ class BehaviorGraph:
     def generate_random_graph(self, number_of_nodes, percent_conditional=0.5):
         # First pick some random functions from the registry and create nodes from them
         self.behavior_nodes = []
-        required_node_count = len(NodeRegister.required_seed_statements) + \
-                              len(NodeRegister.required_seed_conditionals)
+        required_node_count = len(NodeRegister.required_seed_statements) + len(NodeRegister.required_seed_conditionals)
         for n in range(required_node_count):
+            # Set a temporary node in case the following fails
+            node = StatementNode(choice(NodeRegister.eligible_seed_statements))
             if NodeRegister.required_seed_conditionals and NodeRegister.required_seed_statements:
                 if random() < percent_conditional:
                     node = ConditionalNode(choice(NodeRegister.required_seed_conditionals))
@@ -157,7 +158,6 @@ class BehaviorGraph:
                 node = StatementNode(choice(NodeRegister.required_seed_statements))
             number_of_nodes -= 1
             self.behavior_nodes.append(node)
-
         if number_of_nodes > 0:
             for counter in range(0, number_of_nodes):
                 if random() < percent_conditional:
@@ -165,7 +165,6 @@ class BehaviorGraph:
                 else:
                     node = StatementNode(choice(NodeRegister.eligible_seed_statements))
                 self.behavior_nodes.append(node)
-
         # Now hook the nodes together randomly
         for node in self.behavior_nodes:
             if node.node_type == NodeRegister.statement:
@@ -177,7 +176,8 @@ class BehaviorGraph:
         self.set_entry_node(choice(self.behavior_nodes))
 
     def mutate_behavior(self):
-        mutation_type = np.random.random_integers(0, 3)
+        # TODO: Repair the remove node method and enable it here. Remember to change (0, 2) to (0, 3)
+        mutation_type = np.random.random_integers(0, 2)
         if mutation_type == 0:
             self._mutate_replace_function()
         elif mutation_type == 1:
