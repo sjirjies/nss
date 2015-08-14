@@ -1,8 +1,4 @@
-import os
 import time
-import pygame
-import datetime
-import collections
 
 from world import World, WorldWatcher
 from sim_entities import *
@@ -429,5 +425,13 @@ if __name__ == '__main__':
     print(" Keyboard Key '0': Recenter to original view")
     print(" Pressing Keyboard Key 3 with selected bot saves its brain")
     print(" Press Keyboard Key 4 to toggle Signal rendering")
+    print("Legend:")
+    print(" Filled green dot: Plant")
+    print(" Filled purple dot: Bot")
+    print(" Blue circles: Search Signals")
+    print(" Green circles: 'Try to Eat Plants' Signal")
+    print(" Red circles: 'Try to Eat Bots' Signal")
+    print(" Yellow circles: 'Push Bots Away' Signal")
+    print(" Have fun!")
     Simulation(earth, 400, 400, 200, fps=20, text_scale=2, graph_height=150, default_behavior=basic_brain,
                default_brain_size=10)
