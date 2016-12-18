@@ -15,8 +15,6 @@ class NodeRegister:
     required_seed_statements = []
     required_seed_conditionals = []
 
-# TODO: Consider adding a decorator that indicates a function can be used for initial random brain creation
-# This could be a pool in NodeRegister and if it is empty than all functions are used
 
 def statement(seed_eligible=True, seed_required=False):
     def dummy_statement(function):
@@ -60,7 +58,10 @@ class BaseBehaviorNode:
     def execute(self, bot):
         return self.function(bot)
 
-    def is_connected_to(self, node):
+    def replace_edge(self, find_node, replace_with_node):
+        return
+
+    def points_to(self, node):
         return False
 
 
@@ -77,8 +78,12 @@ class StatementNode(BaseBehaviorNode):
         super().execute(bot)
         return self.next_node
 
-    def is_connected_to(self, node):
+    def points_to(self, node):
         return self.next_node == node
+
+    def replace_edge(self, find_node, replace_with_node):
+        if self.next_node == find_node:
+            self.next_node = replace_with_node
 
     def __str__(self):
         if self.next_node is None:
@@ -107,8 +112,14 @@ class ConditionalNode(BaseBehaviorNode):
             return self.true_node
         return self.false_node
 
-    def is_connected_to(self, node):
+    def points_to(self, node):
         return self.true_node == node or self.false_node == node
+
+    def replace_edge(self, find_node, replace_with_node):
+        if self.true_node == find_node:
+            self.true_node = replace_with_node
+        if self.false_node == find_node:
+            self.false_node = replace_with_node
 
     def __str__(self):
         if self.true_node is None:
@@ -176,16 +187,24 @@ class BehaviorGraph:
         self.set_entry_node(choice(self.behavior_nodes))
 
     def mutate_behavior(self):
-        # TODO: Repair the remove node method and enable it here. Remember to change (0, 2) to (0, 3)
-        mutation_type = np.random.random_integers(0, 2)
+        mutation_type = np.random.random_integers(0, 3)
         if mutation_type == 0:
             self._mutate_replace_function()
         elif mutation_type == 1:
             self._mutate_shuffle_outgoing_edge()
         elif mutation_type == 2:
             self._mutate_inject_node()
-        # else:
-        #     self._mutate_remove_node()
+        else:
+            self._mutate_remove_node(choice(self.behavior_nodes))
+
+    def get_all_nodes_pointing_to(self, node, include_self=True):
+        connected = []
+        for n in self.behavior_nodes:
+            if n.points_to(node):
+                connected.append(n)
+        if not include_self:
+            connected[:] = [x for x in connected if x != node]
+        return connected
 
     def _mutate_replace_function(self):
         node = choice(self.behavior_nodes)
@@ -255,80 +274,43 @@ class BehaviorGraph:
             raise ValueError("Node %s has been detected as neither a statement or condition." % previous)
         self.behavior_nodes.append(new_node)
 
-    def _mutate_remove_node(self):
-        # TODO: Definitely unit test this one
-        to_remove = choice(self.behavior_nodes)
-        # Remove this node from the list of behavior nodes for ease of use later
-        self.behavior_nodes.remove(to_remove)
-        # Make sure we still have nodes left before going on
-        if len(self.behavior_nodes) > 1:
-            # Get a list of all nodes that have outgoing edges to the one we are removing
-            connected = []
-            for node in self.behavior_nodes:
-                # Do not count the node as connected if it is the one we are removing
-                if node.is_connected_to(to_remove) and node is not to_remove:
-                    connected.append(node)
-            # Deal with the case of removing a statement node
-            if to_remove.node_type == NodeRegister.statement:
-                # Dead with the case of a statement node leading to itself
-                self_connected = False
-                if to_remove.is_connected_to(to_remove):
-                    self_connected = True
-                # Randomly assign the incoming edges to other nodes (pretty wild) if to_remove is self connected
-                # Otherwise, assign the edges to whatever to_remove points to
-                for c in connected:
-                    # Deal with the connected node being a statement or condition
-                    if c.node_type == NodeRegister.statement:
-                        # behavior_nodes no longer contains to_remove, so c should not connect to it.
-                        # Here we connect c to to_remove's next node, but if to_remove points to self then a random node
-                        c.next_node = choice(self.behavior_nodes) if self_connected else to_remove.next_node
-                    else:
-                        # Here c is conditional. Reassign any edge that points to to_remove
-                        if c.true_node == to_remove:
-                            c.true_node = choice(self.behavior_nodes) if self_connected else to_remove.next_node
-                        if c.false_node == to_remove:
-                            c.false_node = choice(self.behavior_nodes) if self_connected else to_remove.next_node
+    def _mutate_remove_node(self, node_to_remove):
+        # Do not remove the node if it is the only one in the graph, just return False
+        if len(self.behavior_nodes) == 1:
+            return False
+        self.behavior_nodes.remove(node_to_remove)
+        incoming_nodes = self.get_all_nodes_pointing_to(node_to_remove, include_self=False)
+        # Case of removing a statement node
+        if node_to_remove.node_type == NodeRegister.statement:
+            destination_node = node_to_remove.next_node
+            if destination_node is not node_to_remove:
+                if node_to_remove is self.entry_node:
+                    self.set_entry_node(destination_node)
+                for incoming in incoming_nodes:
+                    incoming.replace_edge(find_node=node_to_remove, replace_with_node=destination_node)
             else:
-                # Now deal with the case of to_remove as a condition node
-                # First case is true and false paths both point to self
-                if to_remove.false_node == to_remove and to_remove.true_node == to_remove:
-                    # In this case assign the incoming edges randomly
-                    for c in connected:
-                        if c.node_type == NodeRegister.statement:
-                            c.next_node = choice(self.behavior_nodes)
-                        else:
-                            if c.true_node == to_remove:
-                                c.true_node = choice(self.behavior_nodes)
-                            if c.false_node == to_remove:
-                                c.false_node = choice(self.behavior_nodes)
-                # The second case is if neither path points to itself
-                elif to_remove.false_node != to_remove and to_remove.true_node != to_remove:
-                    # Then give each incoming edge either the true or false path
-                    for c in connected:
-                        if c.node_type == NodeRegister.statement:
-                            c.next_node = choice((to_remove.true_node, to_remove.false_node))
-                        else:
-                            if c.true_node == to_remove:
-                                c.true_node = choice((to_remove.true_node, to_remove.false_node))
-                            if c.false_node == to_remove:
-                                c.false_node = choice((to_remove.true_node, to_remove.false_node))
-                # The last case is when one of the paths points to self and the other does not
-                elif to_remove.false_node == to_remove and to_remove.true_node != to_remove:
-                    for c in connected:
-                        if c.node_type == NodeRegister.statement:
-                            c.next_node = to_remove.true_node
-                        else:
-                            if c.true_node == to_remove:
-                                c.true_node = to_remove.true_node
-                            if c.false_node == to_remove:
-                                c.false_node = to_remove.true_node
-                elif to_remove.false_node != to_remove and to_remove.true_node == to_remove:
-                    for c in connected:
-                        if c.node_type == NodeRegister.statement:
-                            c.next_node = to_remove.false_node
-                        else:
-                            if c.true_node == to_remove:
-                                c.true_node = to_remove.false_node
-                            if c.false_node == to_remove:
-                                c.false_node = to_remove.false_node
-        to_remove = None
+                if node_to_remove is self.entry_node:
+                    self.set_entry_node(choice(self.behavior_nodes))
+                for incoming in incoming_nodes:
+                    incoming.replace_edge(find_node=node_to_remove, replace_with_node=incoming)
+        # Case of removing a conditional node
+        elif node_to_remove.node_type == NodeRegister.conditional:
+            true_node = node_to_remove.true_node
+            false_node = node_to_remove.false_node
+            if true_node is node_to_remove and false_node is node_to_remove:
+                if node_to_remove is self.entry_node:
+                    self.set_entry_node(choice(self.behavior_nodes))
+                for incoming in incoming_nodes:
+                    incoming.replace_edge(find_node=node_to_remove, replace_with_node=incoming)
+            elif true_node is not node_to_remove and false_node is not node_to_remove:
+                if node_to_remove is self.entry_node:
+                    self.set_entry_node(choice([true_node, false_node]))
+                for incoming in incoming_nodes:
+                    incoming.replace_edge(find_node=node_to_remove, replace_with_node=choice([false_node, true_node]))
+            else:
+                next_node = true_node if true_node is not node_to_remove else false_node
+                if node_to_remove is self.entry_node:
+                    self.set_entry_node(next_node)
+                for incoming in incoming_nodes:
+                    incoming.replace_edge(find_node=node_to_remove, replace_with_node=next_node)
+        return True

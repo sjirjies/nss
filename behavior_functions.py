@@ -4,6 +4,7 @@ from sim_entities import Plant, Bot, MobileSignal, StaticSignal, Signal
 from numpy.random import random_integers, ranf
 import math
 
+
 ##########################################
 # These functions are provided by default.
 # Still feel free to modify them
@@ -18,11 +19,13 @@ def _check_detected_entity_type(signal, entity_type, exclude=None):
                 return item
     return False
 
+
 @conditional()
 def reproduce_possible(bot):
     if bot.energy > bot.child_investment:
         return True
     return False
+
 
 @statement(seed_required=True)
 def create_clone(bot):
@@ -35,7 +38,7 @@ def create_clone(bot):
         if random_integers(1, 100) < 40:
             child_behavior.mutate_behavior()
         child = Bot(bot.x + random_integers(-3, 3), bot.y + random_integers(-3, 3),
-                    generation_number=bot.generation_number+1, behavior_graph=child_behavior)
+                    generation_number=bot.generation_number + 1, behavior_graph=child_behavior)
         # For now just start at the first node. Setting it to a random one could be interesting as well.
         child.behavior.set_entry_node(child.behavior.behavior_nodes[0])
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
@@ -43,11 +46,13 @@ def create_clone(bot):
         # print("%s spawned %s" % (str(bot), str(child)))
         bot.world.add_entity(child)
 
+
 @statement()
 def launch_signal(bot):
     # TODO: Make signal creation not require passing 0 and setting energy with a World method
     bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(60, 60, 190))
     bot.world.transfer_energy_between_entities(10, donor=bot, recipient=bot.signal)
+
 
 @conditional()
 def signal_exists(bot):
@@ -55,9 +60,11 @@ def signal_exists(bot):
         return True
     return False
 
+
 @statement()
 def wait(bot):
     pass
+
 
 @conditional()
 def has_signal_found_plant(bot):
@@ -67,6 +74,7 @@ def has_signal_found_plant(bot):
         return True
     return False
 
+
 @statement()
 def move_towards_target(bot):
     if bot.target_point:
@@ -74,12 +82,14 @@ def move_towards_target(bot):
         bot.x += unit_vector[0] * bot.speed
         bot.y += unit_vector[1] * bot.speed
 
+
 @conditional()
 def target_nearby(bot):
     if bot.target_point:
-        if math.sqrt(((bot.target_point[0] - bot.x)**2) + ((bot.target_point[1] - bot.y)**2)) <= 2:
+        if math.sqrt(((bot.target_point[0] - bot.x) ** 2) + ((bot.target_point[1] - bot.y) ** 2)) <= 2:
             return True
     return False
+
 
 @statement()
 def eat_nearby_plants(bot):
@@ -93,6 +103,7 @@ def eat_nearby_plants(bot):
         for entity in bot.signal.detected_objects:
             if isinstance(entity, Plant):
                 bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
+
 
 #######################################################
 # The functions below are extra. Feel free to add more.
@@ -161,15 +172,18 @@ def eat_nearby_signal(bot):
     if entity:
         bot.world.transfer_energy_between_entities(entity.energy, donor=entity, recipient=bot)
 
+
 @statement(seed_eligible=False)
 def create_sniper_signal(bot):
     bot.signal = MobileSignal(bot.x, bot.y, bot.signal_direction, bot, color=(190, 220, 240))
     bot.signal.diameter = 2
     bot.world.transfer_energy_between_entities(50, donor=bot, recipient=bot.signal)
 
+
 @conditional(seed_eligible=False)
 def random_choice(bot):
     return random_integers(0, 1)
+
 
 @conditional()
 def very_low_energy(bot):
@@ -177,11 +191,13 @@ def very_low_energy(bot):
         return True
     return False
 
+
 @statement(seed_eligible=False)
 def set_target_to_signal_origin(bot):
     item = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
     if item:
         bot.target_point = item.x, item.y
+
 
 @statement(seed_eligible=False)
 def increment_message_type(bot):
@@ -189,25 +205,31 @@ def increment_message_type(bot):
     if bot.message_signal_type > 2:
         bot.message_signal_type = 0
 
+
 def _check_message_type(bot, message_type):
     item = _check_detected_entity_type(bot.signal, Signal, exclude=bot.signal)
     return True if item and item.message_signal_type == message_type else False
+
 
 @conditional(seed_eligible=False)
 def detected_message_zero(bot):
     return _check_message_type(bot, 0)
 
+
 @conditional(seed_eligible=False)
 def detected_message_one(bot):
     return _check_message_type(bot, 1)
+
 
 @conditional(seed_eligible=False)
 def detected_message_two(bot):
     return _check_message_type(bot, 2)
 
+
 @statement()
 def set_random_signal_direction(bot):
-    bot.signal_direction = ranf()*2*math.pi
+    bot.signal_direction = ranf() * 2 * math.pi
+
 
 @statement()
 def move_towards_signal_direction(bot):
@@ -215,6 +237,7 @@ def move_towards_signal_direction(bot):
         unit_vector = math.cos(bot.signal_direction), math.sin(bot.signal_direction)
         bot.x += unit_vector[0] * bot.speed
         bot.y += unit_vector[1] * bot.speed
+
 
 @statement()
 def surround_push(bot):
@@ -228,6 +251,6 @@ def surround_push(bot):
             if isinstance(item, Bot) and item is not bot:
                 dx, dy = item.x - signal.x, item.y - signal.y
                 radians = math.atan2(dy, dx)
-                radius = signal.diameter/2
+                radius = signal.diameter / 2
                 item.x = signal.x + (radius * math.cos(radians))
                 item.y = signal.y + (radius * math.sin(radians))
