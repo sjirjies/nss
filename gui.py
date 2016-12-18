@@ -154,7 +154,8 @@ class InfoPanel(BasePanel):
     def _position_labels(self):
         x = 5
         y = 22 * self.text_scale
-        labels = ["Tick", "Time", "FPS", "Free Energy", "Plants", "Bots", "Signals"]
+        labels = ["Tick", "Time", "FPS", "Free Energy", "Plants", "Bots", "Signals", "Plants Born", "Bots Born",
+                  "Signals Used"]
         positions = []
         for index, label in enumerate(labels):
             positions.append((label, (x, (index+1)*y)))
@@ -196,6 +197,9 @@ class InfoPanel(BasePanel):
         data.append(len(self.world.plants))
         data.append(len(self.world.bots))
         data.append(len(self.world.signals))
+        data.append(self.world.plants_created)
+        data.append(self.world.bots_created)
+        data.append(self.world.signals_created)
         return data
 
 

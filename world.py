@@ -26,6 +26,7 @@ except:
         print("Also could not load networkx module")
         print("Intelligence graphing is disabled")
 
+
 class World:
     def __init__(self, bot_limit=None, plant_limit=None, boundary_sizes=None, energy_pool=None):
         self.tick_number = 0
@@ -34,6 +35,9 @@ class World:
         self.bots = []
         self.plants = []
         self.signals = []
+        self.plants_created = 0
+        self.bots_created = 0
+        self.signals_created = 0
         self.bot_limit = bot_limit
         self.plant_limit = plant_limit
         self.boundary_sizes = boundary_sizes
@@ -81,16 +85,19 @@ class World:
         if self.plant_limit and len(self.plants) >= self.plant_limit:
             return False
         self.plants.append(plant)
+        self.plants_created += 1
         return True
 
     def _add_bot(self, bot):
         if self.bot_limit and len(self.bots) >= self.bot_limit:
             return False
         self.bots.append(bot)
+        self.bots_created += 1
         return True
 
     def _add_signal(self, signal):
         self.signals.append(signal)
+        self.signals_created += 1
         return True
 
     def add_entity(self, entity):
