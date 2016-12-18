@@ -5,8 +5,10 @@ from sim_entities import *
 from gui import *
 import behavior_functions
 
+
 # TODO: Create a World Parameters class that can parse JSON parameters to initialize the world
 # TODO: Improve the APIs
+
 
 def create_basic_brain():
     check_reproduce_node = ConditionalNode(behavior_functions.reproduce_possible)
@@ -147,18 +149,18 @@ class Simulation:
                 # Allow zooming in and out even in bot selection mode
                 self._handle_scroll_wheel_zoom()
         elif self.mouse.in_rectangle(self.info_panel_position):
-                # In info panel
-                pass
+            # In info panel
+            pass
 
     def _handle_scroll_wheel_zoom(self):
         if self.mouse.mouse_button == 5:
-            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                      self.view_port.height//2))
+            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width // 2,
+                                                                      self.view_port.height // 2))
             self.view_port.zoom_out()
             self.view_port.center_camera_on_point((world_x, world_y))
         elif self.mouse.mouse_button == 4:
-            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width//2,
-                                                                      self.view_port.height//2))
+            world_x, world_y = self.view_port.surface_point_to_world((self.view_port.width // 2,
+                                                                      self.view_port.height // 2))
             self.view_port.zoom_in()
             self.view_port.center_camera_on_point((world_x, world_y))
 
@@ -216,7 +218,7 @@ class Simulation:
                     self.view_port.zoom = 1
                     x, y = 0, 0
                     if self.world.boundary_sizes:
-                        x, y = self.world.boundary_sizes[0]/2, self.world.boundary_sizes[1]/2
+                        x, y = self.world.boundary_sizes[0] / 2, self.world.boundary_sizes[1] / 2
                     self.view_port.center_camera_on_point((x, y))
                 elif key == pygame.K_1:
                     self.mouse.change_mode("camera")
@@ -231,7 +233,8 @@ class Simulation:
                         os.makedirs(folder)
                     if self.world.selected_bot:
                         print("Saving brain of currently selected bot...")
-                        file = folder + "brain_" + str(datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S"))
+                        file = folder + "brain_" + str(
+                            datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S_")) + self.world.selected_bot.name
                         WorldWatcher.save_bot_intelligence(self.world.selected_bot, file)
                     else:
                         print("Cannot save a brain if no bot is selected")
@@ -281,7 +284,7 @@ class Simulation:
             # Center the world if using boundaries
             if self.world.boundary_sizes:
                 x, y = self.world.boundary_sizes
-                self.view_port.center_camera_on_point((x/2, y/2))
+                self.view_port.center_camera_on_point((x / 2, y / 2))
         else:
             print("Cannot resize window to smaller than (%d, %d)" % (minimum_dimension, minimum_dimension))
             self.main_surface = pygame.display.set_mode((original_width, original_height),
@@ -295,7 +298,7 @@ class Simulation:
             thick = 1
             view = self.view_port.surface
             pygame.draw.rect(view, (200, 50, 50),
-                             (1, 0, view.get_width()-(thick//2)-1, view.get_height()-(thick//2)), thick)
+                             (1, 0, view.get_width() - (thick // 2) - 1, view.get_height() - (thick // 2)), thick)
         self.info_panel.render()
         self.bot_panel.render()
         self.graph_panel.render()
@@ -412,7 +415,7 @@ class Simulation:
 # TODO: Allow selecting from multiple behavior files
 if __name__ == '__main__':
     print("Starting Simulation...")
-    earth = World(boundary_sizes=(300, 200), energy_pool=200000)
+    earth = World(boundary_sizes=(380, 210), energy_pool=200000)
     basic_brain = create_basic_brain()
     minimal_brain = create_very_simple_brain()
     print("Controls:")

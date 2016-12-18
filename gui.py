@@ -2,6 +2,8 @@ import os
 import pygame
 import datetime
 import collections
+import math
+from world import Plant, Bot, Signal
 
 
 class BasePanel:
@@ -55,13 +57,17 @@ class ViewPort(BasePanel):
             pygame.draw.rect(self.surface, (15, 15, 15), (left, top, width+1, height+1), int(self.zoom**0.5))
         # TODO: Use HSV color space instead of RBG to simplify all of this
         if self.draw_signals:
-            # TODO: Draw signals so they fade as their energy decreases
             for signal in self.world.signals:
                 if self.point_is_visible((signal.x, signal.y)):
                     diameter = signal.diameter
                     left = ((signal.x - (diameter/2)) - self.camera_x) * self.zoom
                     top = ((signal.y - (diameter/2)) - self.camera_y) * self.zoom
                     signal_color = signal.color if signal.color else (75, 75, 75)
+                    if signal.age > 2:
+                        age_ratio = min((signal.age-2)/signal.max_age, 1)
+                        signal_color = (math.floor(signal_color[0] - (signal_color[0] * age_ratio)),
+                                        math.floor(signal_color[1] - (signal_color[1] * age_ratio)),
+                                        math.floor(signal_color[2] - (signal_color[2] * age_ratio)))
                     pygame.draw.ellipse(self.surface, signal_color,
                                         (left, top, diameter*self.zoom, diameter*self.zoom), 1)
         for plant in self.world.plants:
@@ -197,9 +203,9 @@ class InfoPanel(BasePanel):
         data.append(len(self.world.plants))
         data.append(len(self.world.bots))
         data.append(len(self.world.signals))
-        data.append(self.world.plants_created)
-        data.append(self.world.bots_created)
-        data.append(self.world.signals_created)
+        data.append(Plant.counter)
+        data.append(Bot.counter)
+        data.append(Signal.counter)
         return data
 
 
