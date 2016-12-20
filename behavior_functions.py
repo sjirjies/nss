@@ -42,6 +42,8 @@ def create_clone(bot):
         # For now just start at the first node. Setting it to a random one could be interesting as well.
         child.behavior.set_entry_node(child.behavior.behavior_nodes[0])
         bot.world.transfer_energy_between_entities(bot.child_investment, donor=bot, recipient=child)
+        # Have the child inherit the preferred energy value to give to its offspring
+        child.child_investment = bot.child_investment
         bot.number_children += 1
         # print("%s spawned %s" % (str(bot), str(child)))
         bot.world.add_entity(child)
@@ -254,3 +256,15 @@ def surround_push(bot):
                 radius = signal.diameter / 2
                 item.x = signal.x + (radius * math.cos(radians))
                 item.y = signal.y + (radius * math.sin(radians))
+
+
+@statement()
+def increment_child_investment(bot):
+    bot.child_investment += 1
+
+
+@statement()
+def decrement_child_investment(bot):
+    bot.child_investment -= 1
+    if bot.child_investment <= 0:
+        bot.child_investment = 1

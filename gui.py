@@ -219,7 +219,7 @@ class BotPanel(BasePanel):
         x = 7
         y = 22 * self.text_scale
         labels = ["Name", "Position", "Energy", "Peak Energy", "Generation", "Birthday", "Age", "Children",
-                  "Brain Size"]
+                  "Child Invest", "Brain Size"]
         positions = []
         for index, label in enumerate(labels):
             positions.append((label, (x, (index+1)*y)))
@@ -229,6 +229,8 @@ class BotPanel(BasePanel):
     def render(self):
         # TODO: Make this cleaner
         data = self._poll_data()
+        if data is None:
+            data = ['-' for _ in range(len(self.labels_map))]
         self.surface.fill(self.bg_color)
         for index, pair in enumerate(self.labels_map):
             label, pos = pair
@@ -254,10 +256,10 @@ class BotPanel(BasePanel):
             data = [bot.name, str((int(bot.x), int(bot.y))), bot.energy, bot.peak_energy,
                     bot.generation_number, bot.birthday,
                     '%d (%d%%)' % (bot.age, int(bot.age/bot.max_age*100)),
-                    bot.number_children, len(bot.behavior.behavior_nodes)]
+                    bot.number_children, bot.child_investment, len(bot.behavior.behavior_nodes)]
             return data
         else:
-            return ['-' for _ in range(9)]
+            return None
 
 
 class GraphPanel(BasePanel):
